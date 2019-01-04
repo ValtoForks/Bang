@@ -1,0 +1,10 @@
+#properties
+#cull_face back
+#wireframe false
+#render_pass scene_opaque
+
+#vertex
+#include "Default.vert"
+
+#fragment
+#include "Default.frag"

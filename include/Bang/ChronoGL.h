@@ -3,16 +3,15 @@
 
 #include <GL/glew.h>
 
-#include "Bang/Array.h"
-#include "Bang/String.h"
+#include "Bang/BangDefines.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class ChronoGL
 {
 public:
     ChronoGL();
-    virtual ~ChronoGL();
+    ~ChronoGL();
 
     void MarkBegin();
     void MarkEnd();
@@ -26,7 +25,6 @@ private:
     bool IsQueryResultAvailable() const;
     GLuint GetQueryResultNanos() const;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // CHRONOGL_H
+#endif  // CHRONOGL_H

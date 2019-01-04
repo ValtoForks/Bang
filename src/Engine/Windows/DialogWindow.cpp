@@ -1,9 +1,9 @@
 #include "Bang/DialogWindow.h"
 
-#include BANG_SDL2_INCLUDE(SDL.h)
+#include <SDL.h>
 #include "Bang/Input.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 DialogWindow::DialogWindow(Window *parentWindow, bool resizable)
 {
@@ -13,13 +13,15 @@ DialogWindow::DialogWindow(Window *parentWindow, bool resizable)
 
 DialogWindow::~DialogWindow()
 {
-
 }
 
 void DialogWindow::Create(uint flags)
 {
     uint newFlags = flags;
-    if (!m_resizable) { newFlags &= ~SDL_WINDOW_RESIZABLE; }
+    if (!m_resizable)
+    {
+        newFlags &= ~SDL_WINDOW_RESIZABLE;
+    }
     Window::Create(newFlags);
 }
 
@@ -28,8 +30,7 @@ void DialogWindow::CenterInParent()
     if (GetParentWindow())
     {
         Vector2i centeredPos = GetParentWindow()->GetPosition() +
-                               GetParentWindow()->GetSize() / 2 -
-                               GetSize() / 2;
+                               GetParentWindow()->GetSize() / 2 - GetSize() / 2;
         SetPosition(centeredPos.x, centeredPos.y);
     }
 }

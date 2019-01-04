@@ -1,22 +1,33 @@
 #ifndef UIRENDERER_H
 #define UIRENDERER_H
 
-#include "Bang/Color.h"
-#include "Bang/Renderer.h"
-#include "Bang/Component.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IEventListener.h"
-#include "Bang/IObjectListener.h"
-#include "Bang/IChildrenListener.h"
-#include "Bang/ITransformListener.h"
-#include "Bang/IMaterialChangedListener.h"
+#include <vector>
 
-NAMESPACE_BANG_BEGIN
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEventsChildren.h"
+#include "Bang/IEventsTransform.h"
+#include "Bang/RenderPass.h"
+#include "Bang/Renderer.h"
+#include "Bang/String.h"
+
+namespace Bang
+{
+class Camera;
+class GameObject;
+class IEventsChildren;
+class IEventsTransform;
+class Object;
 
 class UIRenderer : public Renderer,
-                   public IChildrenListener,
-                   public ITransformListener
+                   public EventListener<IEventsChildren>,
+                   public EventListener<IEventsTransform>
 {
+    COMPONENT(UIRenderer)
+
 public:
     virtual AARect GetBoundingRect(Camera *camera) const override;
 
@@ -27,27 +38,28 @@ public:
     void SetCullByRectTransform(bool cullByRectTransform);
     bool GetCullByRectTransform() const;
 
-    // IObjectListener
-    virtual void OnEnabled()  override;
-    virtual void OnDisabled() override;
+    // IEventsObject
+    virtual void OnEnabled(Object *object) override;
+    virtual void OnDisabled(Object *object) override;
 
-    // ITransformListener
+    // IEventsTransform
     virtual void OnTransformChanged() override;
 
-    // IChildrenListener
-    virtual void OnChildAdded(GameObject *addedChild, GameObject *parent) override;
-    virtual void OnChildRemoved(GameObject *removedChild, GameObject *parent) override;
-    virtual void OnParentChanged(GameObject *oldParent, GameObject *newParent) override;
+    // IEventsChildren
+    virtual void OnChildAdded(GameObject *addedChild,
+                              GameObject *parent) override;
+    virtual void OnChildRemoved(GameObject *removedChild,
+                                GameObject *parent) override;
+    virtual void OnParentChanged(GameObject *oldParent,
+                                 GameObject *newParent) override;
 
 protected:
     UIRenderer();
-    virtual ~UIRenderer();
+    virtual ~UIRenderer() override;
 
 private:
     bool m_cullByRectTransform = true;
-
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIRENDERER_H
+#endif  // UIRENDERER_H

@@ -1,9 +1,12 @@
 #include "Bang/UILayoutIgnorer.h"
 
-USING_NAMESPACE_BANG
+#include "Bang/ClassDB.h"
+
+using namespace Bang;
 
 UILayoutIgnorer::UILayoutIgnorer()
 {
+    SET_INSTANCE_CLASS_ID(UILayoutIgnorer)
 }
 
 UILayoutIgnorer::~UILayoutIgnorer()
@@ -19,4 +22,3 @@ bool UILayoutIgnorer::IsIgnoreLayout() const
 {
     return m_ignoreLayout;
 }
-

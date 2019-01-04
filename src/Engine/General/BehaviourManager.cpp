@@ -1,14 +1,24 @@
 #include "Bang/BehaviourManager.h"
 
-#include "Bang/Debug.h"
-#include "Bang/Scene.h"
-#include "Bang/String.h"
-#include "Bang/Library.h"
-#include "Bang/Behaviour.h"
 #include "Bang/Application.h"
+#include "Bang/Assert.h"
+#include "Bang/Behaviour.h"
+#include "Bang/Component.h"
+#include "Bang/Debug.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/IEventsDestroy.h"
+#include "Bang/Library.h"
 #include "Bang/SceneManager.h"
+#include "Bang/StreamOperators.h"
+#include "Bang/String.h"
 
-USING_NAMESPACE_BANG
+namespace Bang
+{
+class Path;
+}
+
+using namespace Bang;
 
 BehaviourManager::BehaviourManager()
 {
@@ -16,25 +26,36 @@ BehaviourManager::BehaviourManager()
 
 BehaviourManager::~BehaviourManager()
 {
-    if (m_behavioursLibrary) { delete m_behavioursLibrary; }
+    SetBehavioursLibrary(nullptr);
 }
 
-Behaviour *BehaviourManager::CreateBehaviourInstance(const String &behaviourName,
-                                                     Library *behavioursLib)
+Behaviour *BehaviourManager::CreateBehaviourInstance(
+    const String &behaviourName,
+    Library *behavioursLib)
 {
     if (!behavioursLib)
-    { Debug_Error("No current behavioursLib..."); return nullptr; }
+    {
+        Debug_Error("No current behavioursLib...");
+        return nullptr;
+    }
 
     if (!behavioursLib->IsLoaded())
-    { Debug_Error("No loaded behavioursLib..."); behavioursLib->Load(); }
+    {
+        Debug_Error("No loaded behavioursLib...");
+        if (!behavioursLib->Load())
+        {
+            return nullptr;
+        }
+    }
 
     String errorString = "";
     if (behavioursLib->IsLoaded())
     {
         // Get the pointer to the CreateDynamically function
         String funcName = "CreateDynamically_" + behaviourName;
-        Behaviour* (*createFunction)(Application*) =
-            behavioursLib->Get< Behaviour*(*)(Application*) >(funcName.ToCString());
+        Behaviour *(*createFunction)(Application *) =
+            behavioursLib->Get<Behaviour *(*)(Application *)>(
+                funcName.ToCString());
 
         if (createFunction)
         {
@@ -43,9 +64,15 @@ Behaviour *BehaviourManager::CreateBehaviourInstance(const String &behaviourName
             // of this main binary, so it can link it.
             return createFunction(Application::GetInstance());
         }
-        else { errorString = behavioursLib->GetErrorString(); }
+        else
+        {
+            errorString = behavioursLib->GetErrorString();
+        }
     }
-    else { errorString = behavioursLib->GetErrorString(); }
+    else
+    {
+        errorString = behavioursLib->GetErrorString();
+    }
 
     Debug_Error(errorString);
     return nullptr;
@@ -63,8 +90,8 @@ bool BehaviourManager::DeleteBehaviourInstance(const String &behaviourName,
 
     // Get the pointer to the DeleteDynamically function
     String funcName = "DeleteDinamically_" + behaviourName;
-    void (*deleteFunction)(Behaviour*) =
-            (behavioursLib->Get<void (*)(Behaviour*)>(funcName.ToCString()));
+    void (*deleteFunction)(Behaviour *) =
+        (behavioursLib->Get<void (*)(Behaviour *)>(funcName.ToCString()));
 
     if (deleteFunction)
     {
@@ -90,6 +117,22 @@ Library *BehaviourManager::GetBehavioursLibrary() const
     return m_behavioursLibrary;
 }
 
+void BehaviourManager::DestroyBehavioursUsingCurrentLibrary()
+{
+    while (!p_behavioursUsingCurrentLibrary.IsEmpty())
+    {
+        Behaviour *behaviour = p_behavioursUsingCurrentLibrary.Back();
+        Component::DestroyImmediate(behaviour);
+    }
+}
+
+void BehaviourManager::OnDestroyed(EventEmitter<IEventsDestroy> *object)
+{
+    Behaviour *behaviour = SCAST<Behaviour *>(object);
+    p_behavioursUsingCurrentLibrary.Remove(behaviour);
+    ASSERT(!p_behavioursUsingCurrentLibrary.Contains(behaviour));
+}
+
 BehaviourManager *BehaviourManager::GetActive()
 {
     return SceneManager::GetActive()->GetBehaviourManager();
@@ -98,27 +141,39 @@ BehaviourManager *BehaviourManager::GetActive()
 void BehaviourManager::SetBehavioursLibrary(const Path &libPath)
 {
     Library *behavioursLib = new Library(libPath);
-    behavioursLib->Load();
     SetBehavioursLibrary(behavioursLib);
 }
 
 void BehaviourManager::SetBehavioursLibrary(Library *behavioursLibrary)
 {
-    if (GetBehavioursLibrary())
+    if (behavioursLibrary != GetBehavioursLibrary())
     {
-        delete GetBehavioursLibrary();
-    }
-
-    m_behavioursLibrary = behavioursLibrary;
-
-    if (GetBehavioursLibrary())
-    {
-        Debug_DLog("Going to load BehavioursLibrary " <<
-                   GetBehavioursLibrary()->GetLibraryPath());
-
-        if(!GetBehavioursLibrary()->Load())
+        if (GetBehavioursLibrary())
         {
-            Debug_Error(GetBehavioursLibrary()->GetErrorString());
+            DestroyBehavioursUsingCurrentLibrary();
+            delete GetBehavioursLibrary();
         }
+
+        m_behavioursLibrary = behavioursLibrary;
+
+        if (GetBehavioursLibrary())
+        {
+            Debug_DLog("Going to load BehavioursLibrary "
+                       << GetBehavioursLibrary()->GetLibraryPath());
+
+            if (!GetBehavioursLibrary()->Load())
+            {
+                Debug_Error(GetBehavioursLibrary()->GetErrorString());
+            }
+        }
+    }
+}
+
+void BehaviourManager::RegisterBehaviour(Behaviour *behaviour)
+{
+    if (!p_behavioursUsingCurrentLibrary.Contains(behaviour))
+    {
+        p_behavioursUsingCurrentLibrary.PushBack(behaviour);
+        behaviour->EventEmitter<IEventsDestroy>::RegisterListener(this);
     }
 }

@@ -1,10 +1,13 @@
 #ifndef UIHORIZONTALLAYOUT_H
 #define UIHORIZONTALLAYOUT_H
 
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/String.h"
 #include "Bang/UIDirLayout.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class UIHorizontalLayout : public UIDirLayout
 {
     COMPONENT(UIHorizontalLayout)
@@ -12,7 +15,6 @@ class UIHorizontalLayout : public UIDirLayout
 public:
     UIHorizontalLayout();
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIHORIZONTALLAYOUT_H
+#endif  // UIHORIZONTALLAYOUT_H

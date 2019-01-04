@@ -3,20 +3,22 @@
 
 #include "Bang/Bang.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 enum class RenderPass
 {
-    Scene              = 0,
-    ScenePostProcess   = 1,
+    SCENE_OPAQUE = 0,
+    SCENE_DECALS = 8,
+    SCENE_TRANSPARENT = 6,
+    SCENE_BEFORE_ADDING_LIGHTS = 1,
+    SCENE_AFTER_ADDING_LIGHTS = 7,
 
-    Canvas             = 2,
-    CanvasPostProcess  = 3,
+    CANVAS = 2,
+    CANVAS_POSTPROCESS = 3,
 
-    Overlay            = 4,
-    OverlayPostProcess = 5
+    OVERLAY = 4,
+    OVERLAY_POSTPROCESS = 5
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // RENDERPASS_H
+#endif  // RENDERPASS_H

@@ -1,17 +1,26 @@
 #include "Bang/Object.h"
 
-#include "Bang/Debug.h"
+#include "Bang/Assert.h"
+#include "Bang/IEventsDestroy.h"
+#include "Bang/IEventsObject.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
+
+Object::Object()
+{
+    SET_INSTANCE_CLASS_ID(Object);
+}
 
 Object::~Object()
 {
-    ASSERT( IsWaitingToBeDestroyed() );
+    ASSERT(IsBeingDestroyed());
+    ASSERT(IsWaitingToBeDestroyed());
+    PropagateObjectDestruction(this);
 }
 
 bool Object::IsActive() const
 {
-    return IsStarted() && IsEnabled() && !IsWaitingToBeDestroyed();
+    return IsEnabled() && !IsWaitingToBeDestroyed();
 }
 
 void Object::PreStart()
@@ -28,38 +37,78 @@ void Object::Start()
     {
         OnStart();
         m_started = true;
-        EventEmitter<IObjectListener>::
-                PropagateToListeners(&IObjectListener::OnStarted);
+
+        EventEmitter<IEventsObject>::PropagateToListeners(
+            &IEventsObject::OnStarted, this);
     }
 }
 
-void Object::OnPreStart() {}
-void Object::OnStart() {}
-void Object::OnEnabled()
+void Object::OnPreStart()
 {
-    EventEmitter<IObjectListener>::
-            PropagateToListeners(&IObjectListener::OnEnabled);
 }
-void Object::OnDisabled()
-{
-    EventEmitter<IObjectListener>::
-            PropagateToListeners(&IObjectListener::OnDisabled);
-}
-void Object::OnDestroy() {}
 
-void Object::DestroyObject(Object *object)
+void Object::OnStart()
 {
-    if (!object->IsWaitingToBeDestroyed())
+}
+
+void Object::OnEnabled(Object *object)
+{
+    EventEmitter<IEventsObject>::PropagateToListeners(&IEventsObject::OnEnabled,
+                                                      object);
+}
+
+void Object::OnDisabled(Object *object)
+{
+    EventEmitter<IEventsObject>::PropagateToListeners(
+        &IEventsObject::OnDisabled, object);
+}
+
+void Object::OnDestroy()
+{
+}
+
+void Object::SetBeingDestroyed()
+{
+    m_beingDestroyed = true;
+}
+
+void Object::SetWaitingToBeDestroyed()
+{
+    m_waitingToBeDestroyed = true;
+}
+
+void Object::InvalidateEnabledRecursively()
+{
+    if (m_enabledRecursivelyValid)
     {
-        object->m_waitingToBeDestroyed = true;
+        m_enabledRecursivelyValid = false;
+        OnEnabledRecursivelyInvalidated();
+    }
+}
+
+void Object::PropagateObjectDestruction(Object *object)
+{
+    if (!object->GetDestroyEventHasBeenPropagated())
+    {
+        object->m_destroyEventPropagated = true;
 
         object->OnDestroy();
-        object->EventEmitter<IDestroyListener>::
-                PropagateToListeners(&IDestroyListener::OnDestroyed, object);
+        object->EventEmitter<IEventsDestroy>::PropagateToListeners(
+            &IEventsDestroy::OnDestroyed, object);
     }
 }
 
-const ObjectId& Object::GetObjectId() const
+bool Object::GetDestroyEventHasBeenPropagated() const
+{
+    return m_destroyEventPropagated;
+}
+
+void Object::OnEnabledRecursivelyInvalidated()
+{
+    // Empty
+}
+
+const ObjectId &Object::GetObjectId() const
 {
     return m_objectId;
 }
@@ -69,18 +118,62 @@ void Object::SetEnabled(bool enabled)
     if (enabled != IsEnabled())
     {
         m_enabled = enabled;
-        if (IsEnabled()) { OnEnabled(); } else { OnDisabled(); }
+        InvalidateEnabledRecursively();
+
+        if (IsEnabled())
+        {
+            OnEnabled(this);
+            EventEmitter<IEventsObject>::PropagateToListeners(
+                &IEventsObject::OnEnabled, this);
+        }
+        else
+        {
+            OnDisabled(this);
+            EventEmitter<IEventsObject>::PropagateToListeners(
+                &IEventsObject::OnDisabled, this);
+        }
     }
 }
 
-bool Object::IsEnabled() const { return m_enabled; }
-bool Object::IsStarted() const { return m_started; }
-bool Object::IsWaitingToBeDestroyed() const { return m_waitingToBeDestroyed; }
-
-void Object::CloneInto(ICloneable *clone) const
+bool Object::IsEnabled() const
 {
-    Object *obj = Cast<Object*>(clone);
-    obj->SetEnabled( IsEnabled() );
+    return m_enabled;
 }
 
+bool Object::IsStarted() const
+{
+    return m_started;
+}
 
+bool Object::IsActiveRecursively() const
+{
+    return IsActive() && IsEnabledRecursively();
+}
+
+bool Object::IsEnabledRecursively() const
+{
+    if (!m_enabledRecursivelyValid)
+    {
+        m_enabledRecursively = CalculateEnabledRecursively();
+        m_enabledRecursivelyValid = true;
+    }
+    return m_enabledRecursively;
+}
+
+bool Object::IsBeingDestroyed() const
+{
+    return m_beingDestroyed;
+}
+
+bool Object::IsWaitingToBeDestroyed() const
+{
+    return m_waitingToBeDestroyed;
+}
+
+void Object::CloneInto(ICloneable *clone, bool cloneGUID) const
+{
+    Serializable::CloneInto(clone, cloneGUID);
+
+    Object *obj = SCAST<Object *>(clone);
+    obj->SetEnabled(IsEnabled());
+}

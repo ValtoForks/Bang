@@ -2,35 +2,61 @@
 #define TEXTUREUNITMANAGER_H
 
 #include <queue>
+#include <unordered_map>
+#include <vector>
 
-#include "Bang/Map.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GL.h"
+#include "Bang/IEventsDestroy.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+template <class>
+class EventEmitter;
+class IEventsDestroy;
+class Texture;
 
-FORWARD class Texture;
-
-class TextureUnitManager
+class TextureUnitManager : public EventListener<IEventsDestroy>
 {
 public:
     using TexUnit = uint;
     TextureUnitManager();
 
-    // Returns the texture unit it has been bound to
-    static TexUnit BindTexture(const Texture *tex);
-    static TexUnit BindTexture(GLId textureId);
-    static void UnBindTexture(const Texture *tex);
-    static void UnBindTexture(GLId textureId);
+    static void BindTextureToUnit(Texture *texture, TexUnit unit);
+    static TexUnit BindTextureToUnit(Texture *texture);
+
+    static uint GetMaxTextureUnits();
+    static uint GetNumUsableTextureUnits();
+    static void UnBindAllTexturesFromAllUnits();
+
+    static uint GetUnitTextureIsBoundTo(Texture *texture);
+    static GLId GetBoundTextureToUnit(GL::TextureTarget texTarget,
+                                      GL::Enum textureUnit);
+    static void PrintTextureUnits();
+    static TextureUnitManager *GetActive();
 
 private:
-    using TexUnitMap = Map<const GLId, TexUnit>;
-    TexUnitMap m_textureIdToUnit;
+    uint m_numMaxTextureUnits = SCAST<uint>(-1);
+    uint m_numUsableTextureUnits = SCAST<uint>(-1);
+    TexUnit m_voidTexUnit = -1;
 
-    // Ordered in time
-    std::queue<TexUnit> m_usedUnits;
+    uint m_timestampCounter = 0;
+    std::queue<TexUnit> m_freeUnits;
+    std::unordered_map<GLId, uint> m_timestampTexIdUsed;
+    std::unordered_map<GLId, Texture *> m_textureIdToTexture;
+    std::unordered_map<GLId, TexUnit> m_textureIdToBoundUnit;
 
-    int c_numTextureUnits = 0;
+    TexUnit MakeRoomAndGetAFreeTextureUnit();
+    void UpdateStructuresForUsedTexture(Texture *texture, uint usedUnit);
+    void UnTrackTexture(GLId textureId);
+    void CheckBindingsValidity() const;
+
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // TEXTUREUNITMANAGER_H
+#endif  // TEXTUREUNITMANAGER_H

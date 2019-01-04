@@ -1,32 +1,39 @@
 #include "Bang/PostProcessEffect.h"
 
-#include "Bang/Paths.h"
+#include <istream>
+
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/Assets.h"
+#include "Bang/Assets.tcc"
 #include "Bang/Camera.h"
-#include "Bang/Shader.h"
-#include "Bang/XMLNode.h"
+#include "Bang/ClassDB.h"
+#include "Bang/Extensions.h"
 #include "Bang/GBuffer.h"
 #include "Bang/GEngine.h"
-#include "Bang/Resources.h"
+#include "Bang/GUID.h"
 #include "Bang/GameObject.h"
+#include "Bang/ICloneable.h"
+#include "Bang/MetaNode.h"
+#include "Bang/MetaNode.tcc"
+#include "Bang/Scene.h"
+#include "Bang/Shader.h"
 #include "Bang/ShaderProgram.h"
 #include "Bang/ShaderProgramFactory.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 PostProcessEffect::PostProcessEffect()
 {
-    p_shaderProgram = ShaderProgramFactory::GetDefaultPostProcess();
-}
-
-PostProcessEffect::~PostProcessEffect()
-{
+    SET_INSTANCE_CLASS_ID(PostProcessEffect)
+    p_shaderProgram.Set(ShaderProgramFactory::GetDefaultPostProcess());
 }
 
 void PostProcessEffect::OnRender(RenderPass renderPass)
 {
     Component::OnRender(renderPass);
 
-    if ( MustBeRendered(renderPass) )
+    if (MustBeRendered(renderPass))
     {
         if (p_postProcessShader && p_shaderProgram.Get()->IsLinked())
         {
@@ -40,94 +47,101 @@ void PostProcessEffect::OnRender(RenderPass renderPass)
 bool PostProcessEffect::MustBeRendered(RenderPass renderPass) const
 {
     // Only render if its gameObject contains the active camera
-    Camera *activeCamera = Camera::GetActive();
-    if (!GetGameObject()->GetComponents().Contains(activeCamera)) { return false; }
-
-    switch (GetType())
+    // Camera *activeSceneCamera = Camera::GetActive();
+    // if (GetGameObject()->GetComponents().Contains(activeSceneCamera))
     {
-        case Type::AfterScene:
-            return (renderPass == RenderPass::ScenePostProcess);
+        switch (GetType())
+        {
+            case Type::AFTER_SCENE:
+                return (renderPass == RenderPass::SCENE_BEFORE_ADDING_LIGHTS);
 
-        case Type::AfterCanvas:
-            return (renderPass == RenderPass::ScenePostProcess ||
-                    renderPass == RenderPass::CanvasPostProcess);
+            case Type::AFTER_SCENE_AND_LIGHT:
+                return (renderPass == RenderPass::SCENE_AFTER_ADDING_LIGHTS);
+
+            case Type::AFTER_CANVAS:
+                return (renderPass == RenderPass::CANVAS_POSTPROCESS);
+        }
     }
-
-    ASSERT(false);
     return false;
 }
 
-void PostProcessEffect::SetType(PostProcessEffect::Type type) { m_type = type; }
-void PostProcessEffect::SetPriority(int priority) { m_priority = priority; }
+void PostProcessEffect::SetType(PostProcessEffect::Type type)
+{
+    m_type = type;
+}
+void PostProcessEffect::SetPriority(int priority)
+{
+    m_priority = priority;
+}
 void PostProcessEffect::SetPostProcessShader(Shader *postProcessShader)
 {
-    if (!postProcessShader) { return; }
-    if (postProcessShader == p_postProcessShader.Get()) { return; }
+    if (!postProcessShader)
+    {
+        return;
+    }
+    if (postProcessShader == p_postProcessShader.Get())
+    {
+        return;
+    }
 
-    p_postProcessShader = Resources::Create<Shader>();
+    p_postProcessShader = Assets::Create<Shader>();
     p_postProcessShader.Set(postProcessShader);
 
-    p_shaderProgram = Resources::Create<ShaderProgram>();
+    p_shaderProgram = Assets::Create<ShaderProgram>();
     p_shaderProgram.Get()->SetVertexShader(
-            ShaderProgramFactory::GetDefaultPostProcess()->GetVertexShader() );
-    p_shaderProgram.Get()->SetFragmentShader( GetPostProcessShader() );
+        ShaderProgramFactory::GetDefaultPostProcess()->GetVertexShader());
+    p_shaderProgram.Get()->SetFragmentShader(GetPostProcessShader());
     p_shaderProgram.Get()->Link();
 }
 
-PostProcessEffect::Type PostProcessEffect::GetType() const { return m_type; }
-int PostProcessEffect::GetPriority() const { return m_priority; }
-ShaderProgram* PostProcessEffect::GetPostProcessShaderProgram() const
+PostProcessEffect::Type PostProcessEffect::GetType() const
+{
+    return m_type;
+}
+int PostProcessEffect::GetPriority() const
+{
+    return m_priority;
+}
+ShaderProgram *PostProcessEffect::GetPostProcessShaderProgram() const
 {
     return p_shaderProgram.Get();
 }
-Shader* PostProcessEffect::GetPostProcessShader() const
+Shader *PostProcessEffect::GetPostProcessShader() const
 {
     return p_postProcessShader.Get();
 }
 Path PostProcessEffect::GetPostProcessShaderFilepath() const
 {
-    return p_postProcessShader ?
-                p_postProcessShader.Get()->GetResourceFilepath() : Path();
+    return p_postProcessShader ? p_postProcessShader.Get()->GetAssetFilepath()
+                               : Path();
 }
 
-void PostProcessEffect::CloneInto(ICloneable *clone) const
+void PostProcessEffect::Reflect()
 {
-    Component::CloneInto(clone);
-    PostProcessEffect *ppe = Cast<PostProcessEffect*>(clone);
-    ppe->SetPostProcessShader( GetPostProcessShader() );
-    ppe->SetType( GetType() );
-    ppe->SetPriority( GetPriority() );
+    Component::Reflect();
+
+    BANG_REFLECT_VAR_ASSET(
+        "PostProcess Shader",
+        SetPostProcessShader,
+        GetPostProcessShader,
+        Shader,
+        BANG_REFLECT_HINT_EXTENSIONS(Extensions::GetShaderExtensions()));
+
+    BANG_REFLECT_VAR_MEMBER(
+        PostProcessEffect, "Priority", SetPriority, GetPriority);
+
+    BANG_REFLECT_VAR_ENUM("Type", SetType, GetType, PostProcessEffect::Type);
+    BANG_REFLECT_HINT_ENUM_FIELD_VALUE(
+        "Type", "After Scene", PostProcessEffect::Type::AFTER_SCENE);
+    BANG_REFLECT_HINT_ENUM_FIELD_VALUE(
+        "Type",
+        "After Scene and Light",
+        PostProcessEffect::Type::AFTER_SCENE_AND_LIGHT);
+    BANG_REFLECT_HINT_ENUM_FIELD_VALUE(
+        "Type", "After Canvas", PostProcessEffect::Type::AFTER_CANVAS);
 }
 
-void PostProcessEffect::ImportXML(const XMLNode &xmlInfo)
-{
-    Component::ImportXML(xmlInfo);
-
-    if (xmlInfo.Contains("Priority"))
-    { SetPriority( xmlInfo.Get<int>("Priority") ); }
-
-    if (xmlInfo.Contains("Type"))
-    { SetType( xmlInfo.Get<Type>("Type") ); }
-
-    if (xmlInfo.Contains("PostProcessShader"))
-    {
-        GUID shaderGUID = xmlInfo.Get<GUID>("PostProcessShader");
-        RH<Shader> ppShader = Resources::Load<Shader>(shaderGUID);
-        SetPostProcessShader(ppShader.Get());
-    }
-}
-
-void PostProcessEffect::ExportXML(XMLNode *xmlInfo) const
-{
-    Component::ExportXML(xmlInfo);
-
-    if (GetPostProcessShader())
-    { xmlInfo->Set("PostProcessShader", GetPostProcessShader()->GetGUID()); }
-    xmlInfo->Set("Priority", GetPriority());
-    xmlInfo->Set("Type", GetType());
-}
-
-bool operator<(const PostProcessEffect& lhs, const PostProcessEffect& rhs)
+bool operator<(const PostProcessEffect &lhs, const PostProcessEffect &rhs)
 {
     return lhs.GetPriority() < rhs.GetPriority();
 }

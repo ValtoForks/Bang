@@ -1,6 +1,11 @@
 #include "Bang/ThreadPool.h"
 
-USING_NAMESPACE_BANG
+#include <list>
+
+#include "Bang/List.tcc"
+#include "Bang/Thread.h"
+
+using namespace Bang;
 
 ThreadPool::ThreadPool()
 {
@@ -20,10 +25,16 @@ bool ThreadPool::TryStart(ThreadRunnable *runnable)
         {
             it = m_threadList.Remove(it);
         }
-        else { ++it; }
+        else
+        {
+            ++it;
+        }
     }
 
-    if (m_threadList.Size() >= m_maxThreadCount) { return false; }
+    if (m_threadList.Size() >= m_maxThreadCount)
+    {
+        return false;
+    }
 
     String threadName = m_threadsName + String::ToString(m_threadList.Size());
     Thread *thread = new Thread(runnable, threadName);

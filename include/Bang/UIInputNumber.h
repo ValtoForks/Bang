@@ -1,67 +1,80 @@
 #ifndef UIINPUTNUMBER_H
 #define UIINPUTNUMBER_H
 
-#include "Bang/UIFocusable.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IFocusListener.h"
-#include "Bang/IValueChangedListener.h"
+#include <vector>
 
-NAMESPACE_BANG_BEGIN
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/IEventsFocus.h"
+#include "Bang/IEventsValueChanged.h"
+#include "Bang/Math.h"
+#include "Bang/String.h"
 
-FORWARD class UIInputText;
+namespace Bang
+{
+class GameObject;
+class IEventsValueChanged;
+class UIFocusable;
+class UIInputText;
 
 class UIInputNumber : public Component,
-                      public EventEmitter<IValueChangedListener>,
-                      public IValueChangedListener,
-                      public IFocusListener
+                      public EventEmitter<IEventsValueChanged>,
+                      public EventListener<IEventsValueChanged>,
+                      public EventListener<IEventsFocus>
 {
     COMPONENT(UIInputNumber)
 
 public:
-	UIInputNumber();
-	virtual ~UIInputNumber();
-
-    void OnStart() override;
-    void OnUpdate() override;
+    UIInputNumber();
+    virtual ~UIInputNumber() override;
 
     void SetValue(float v);
+    void SetMinValue(float min);
+    void SetMaxValue(float max);
+    void SetBlocked(bool blocked);
     void SetMinMaxValues(float min, float max);
     void SetDecimalPlaces(uint decimalPlaces);
+    void SetStep(float step);
 
     float GetValue() const;
     uint GetDecimalPlaces() const;
-    UIInputText* GetInputText() const;
+    UIInputText *GetInputText() const;
     float GetMinValue() const;
     float GetMaxValue() const;
+    float GetStep() const;
     const Vector2 &GetMinMaxValues() const;
 
     bool HasFocus() const;
 
-    // IFocusListener
-    virtual void OnFocusTaken(IFocusable *focusable) override;
-    virtual void OnFocusLost(IFocusable *focusable) override;
+    // IEventsFocus
+    virtual UIEventResult OnUIEvent(UIFocusable *focusable,
+                                    const UIEvent &event) override;
 
 private:
-    float m_value            = 0.0f;
-    bool m_hasFocus          = false;
-    uint m_decimalPlaces     = 3;
+    float m_value = 0.0f;
+    float m_step = 1.0f;
+    uint m_decimalPlaces = 3;
     UIInputText *p_inputText = nullptr;
-    Vector2 m_minMaxValues   = Vector2(Math::NegativeInfinity<float>(),
-                                       Math::Infinity<float>());
+    Vector2 m_minMaxValues =
+        Vector2(Math::NegativeInfinity<float>(), Math::Infinity<float>());
 
     void UpdateValueFromText();
     void UpdateTextFromValue();
     void ChangeTextColorBasedOnMinMax();
 
-    // IValueChangedListener
-    void OnValueChanged(Object*) override;
+    // IEventsValueChanged
+    void OnValueChanged(EventEmitter<IEventsValueChanged> *) override;
 
     static UIInputNumber *CreateInto(GameObject *go);
 
     friend class GameObjectFactory;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIINPUTNUMBER_H
-
+#endif  // UIINPUTNUMBER_H

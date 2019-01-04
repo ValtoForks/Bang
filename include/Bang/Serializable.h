@@ -1,40 +1,43 @@
 #ifndef SERIALIZABLE_H
 #define SERIALIZABLE_H
 
-#include "Bang/String.h"
+#include "Bang/BangDefines.h"
 #include "Bang/HideFlags.h"
-#include "Bang/IGUIDable.h"
 #include "Bang/ICloneable.h"
+#include "Bang/IGUIDable.h"
 #include "Bang/IReflectable.h"
+#include "Bang/MetaNode.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class Path;
 
-#define SERIALIZABLE(CLASS) \
-        public: \
-        virtual String GetClassName() const override { return #CLASS; } \
-        static String GetClassNameStatic() { return #CLASS; }
-
-class Serializable : public IGUIDable
+class Serializable : public IGUIDable, public ICloneable, public IReflectable
 {
 public:
-    virtual ~Serializable();
+    virtual ~Serializable() override;
     Serializable(const Serializable &rhs);
 
-    void ImportXML(const String &xmlInfoString);
+    void ImportMeta(const String &metaNodeString);
 
-    virtual void ImportXML(const XMLNode &xmlInfo);
-    virtual void ExportXML(XMLNode *xmlInfo) const;
+    virtual void ImportMeta(const MetaNode &metaNode);
+    virtual void ExportMeta(MetaNode *metaNode) const;
 
-    virtual bool ImportXMLFromFile(const Path &path);
-    virtual bool ExportXMLToFile(const Path &path) const;
+    virtual bool ImportMetaFromFile(const Path &path);
+    virtual bool ExportMetaToFile(const Path &path) const;
 
     virtual String GetClassName() const = 0;
 
-    XMLNode GetXMLInfo() const;
+    MetaNode GetMeta() const;
     String GetSerializedString() const;
 
-    HideFlags& GetHideFlags();
-    const HideFlags& GetHideFlags() const;
+    HideFlags &GetHideFlags();
+    const HideFlags &GetHideFlags() const;
+
+    // ICloneable
+    virtual void CloneInto(ICloneable *cloneable,
+                           bool cloneGUID) const override;
 
 protected:
     Serializable();
@@ -42,9 +45,19 @@ protected:
 private:
     HideFlags m_hideFlags;
 
-    friend class Resources;
+    friend class Assets;
 };
 
-NAMESPACE_BANG_END
+#define SERIALIZABLE(CLASS)                      \
+public:                                          \
+    virtual String GetClassName() const override \
+    {                                            \
+        return #CLASS;                           \
+    }                                            \
+    static String GetClassNameStatic()           \
+    {                                            \
+        return #CLASS;                           \
+    }
+}
 
-#endif // SERIALIZABLE_H
+#endif  // SERIALIZABLE_H

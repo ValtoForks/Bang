@@ -1,30 +1,32 @@
 #include "Bang/ILayoutElement.h"
 
-#include "Bang/GameObject.h"
-#include "Bang/RectTransform.h"
 #include "Bang/UILayoutManager.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
-ILayoutElement::ILayoutElement() {}
-ILayoutElement::~ILayoutElement() {}
+ILayoutElement::ILayoutElement()
+{
+}
+ILayoutElement::~ILayoutElement()
+{
+}
 
 void ILayoutElement::SetCalculatedLayout(Axis axis,
                                          int min,
                                          int preferred,
                                          float flexible)
 {
-    if (axis == Axis::Horizontal)
+    if (axis == Axis::HORIZONTAL)
     {
-        m_calculatedMinSize.x       = min;
+        m_calculatedMinSize.x = min;
         m_calculatedPreferredSize.x = preferred;
-        m_calculatedFlexibleSize.x  = flexible;
+        m_calculatedFlexibleSize.x = flexible;
     }
-    else if (axis == Axis::Vertical)
+    else if (axis == Axis::VERTICAL)
     {
-        m_calculatedMinSize.y       = min;
+        m_calculatedMinSize.y = min;
         m_calculatedPreferredSize.y = preferred;
-        m_calculatedFlexibleSize.y  = flexible;
+        m_calculatedFlexibleSize.y = flexible;
     }
 }
 
@@ -41,7 +43,10 @@ void ILayoutElement::Invalidate()
 void ILayoutElement::OnInvalidated()
 {
     IInvalidatable<ILayoutElement>::OnInvalidated();
-    UILayoutManager::PropagateInvalidation(this);
+    if (UILayoutManager *uilm = UILayoutManager::GetActive(this))
+    {
+        uilm->PropagateInvalidation(this);
+    }
 }
 
 int ILayoutElement::GetLayoutPriority() const
@@ -54,7 +59,10 @@ void ILayoutElement::_CalculateLayout(Axis axis)
     if (IInvalidatable<ILayoutElement>::IsInvalid())
     {
         CalculateLayout(axis);
-        if (axis == Axis::Vertical) { Validate(); }
+        if (axis == Axis::VERTICAL)
+        {
+            Validate();
+        }
     }
 }
 
@@ -75,8 +83,20 @@ Vector2 ILayoutElement::GetFlexibleSize() const
 
 Vector2 ILayoutElement::GetSize(LayoutSizeType sizeType) const
 {
-    if (sizeType == LayoutSizeType::Min) { return Vector2( GetMinSize() ); }
-    if (sizeType == LayoutSizeType::Preferred) { return Vector2( GetPreferredSize() ); }
-    if (sizeType == LayoutSizeType::Flexible)  { return GetFlexibleSize(); }
-    return Vector2::Zero;
+    if (sizeType == LayoutSizeType::MIN)
+    {
+        return Vector2(GetMinSize());
+    }
+
+    if (sizeType == LayoutSizeType::PREFERRED)
+    {
+        return Vector2(GetPreferredSize());
+    }
+
+    if (sizeType == LayoutSizeType::FLEXIBLE)
+    {
+        return GetFlexibleSize();
+    }
+
+    return Vector2::Zero();
 }

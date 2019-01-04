@@ -1,10 +1,14 @@
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
+#include "Bang/BangDefines.h"
 #include "Bang/List.h"
-#include "Bang/Thread.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class Thread;
+class ThreadRunnable;
 
 class ThreadPool
 {
@@ -22,11 +26,10 @@ public:
 
 private:
     String m_threadsName = "BangPooledThread";
-    List<Thread*> m_threadList;
+    List<Thread *> m_threadList;
 
-    int m_maxThreadCount = 32;
+    uint m_maxThreadCount = 32;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // THREADPOOL_H
+#endif  // THREADPOOL_H

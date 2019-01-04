@@ -1,20 +1,32 @@
 #ifndef BEHAVIOURMANAGER_H
 #define BEHAVIOURMANAGER_H
 
-#include "Bang/Bang.h"
+#include <vector>
 
-NAMESPACE_BANG_BEGIN
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEventsDestroy.h"
+#include "Bang/String.h"
 
-FORWARD class Library;
-FORWARD class Behaviour;
+namespace Bang
+{
+template <class>
+class EventEmitter;
+class Behaviour;
+class IEventsDestroy;
+class Library;
+class Path;
 
-class BehaviourManager
+class BehaviourManager : public EventListener<IEventsDestroy>
 {
 public:
-	BehaviourManager();
-	virtual ~BehaviourManager();
+    BehaviourManager();
+    virtual ~BehaviourManager() override;
 
-    static Behaviour* CreateBehaviourInstance(const String &behaviourName,
+    static Behaviour *CreateBehaviourInstance(const String &behaviourName,
                                               Library *behavioursLibrary);
     static bool DeleteBehaviourInstance(const String &behaviourName,
                                         Behaviour *behaviour,
@@ -24,18 +36,21 @@ public:
 
     void SetBehavioursLibrary(const Path &libPath);
     void SetBehavioursLibrary(Library *behavioursLibrary);
+    void RegisterBehaviour(Behaviour *behaviour);
 
     virtual bool IsInstanceCreationAllowed() const;
-    Library* GetBehavioursLibrary() const;
+    Library *GetBehavioursLibrary() const;
+    void DestroyBehavioursUsingCurrentLibrary();
 
-    static BehaviourManager* GetActive();
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
+
+    static BehaviourManager *GetActive();
 
 private:
     Library *m_behavioursLibrary = nullptr;
-
+    Array<Behaviour *> p_behavioursUsingCurrentLibrary;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // BEHAVIOURMANAGER_H
-
+#endif  // BEHAVIOURMANAGER_H

@@ -3,40 +3,45 @@
 
 #include <AL/al.h>
 #include <AL/alc.h>
+#include <vector>
 
-#include "Bang/Set.h"
-#include "Bang/Math.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/Debug.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEventsDestroy.h"
 #include "Bang/List.h"
-#include "Bang/Vector3.h"
+#include "Bang/Mutex.h"
+#include "Bang/String.h"
 #include "Bang/ThreadPool.h"
-#include "Bang/MutexLocker.h"
-#include "Bang/AudioParams.h"
-#include "Bang/ResourceHandle.h"
-#include "Bang/IDestroyListener.h"
+#include "Bang/UMap.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+template <class>
+class EventEmitter;
+class ALAudioSource;
+class AudioClip;
+class AudioPlayerRunnable;
+class IEventsDestroy;
+class Path;
+struct AudioParams;
 
-FORWARD class Path;
-FORWARD class AudioClip;
-FORWARD class GameObject;
-FORWARD class AudioSource;
-FORWARD class ALAudioSource;
-FORWARD class AudioPlayerRunnable;
-
-class AudioManager : public IDestroyListener
+class AudioManager : public EventListener<IEventsDestroy>
 {
 public:
     void Init();
 
-    static void Play(AudioClip* audioClip,
-                     ALAudioSource *alAudioSource,
-                     float delay = 0.0f);
-    static void Play(AudioClip* audioClip,
-                     const AudioParams &params,
-                     float delay = 0.0f);
-    static void Play(const Path& audioClipFilepath,
-                     const AudioParams &params,
-                     float delay = 0.0f);
+    static ALAudioSource *Play(AudioClip *audioClip,
+                               ALAudioSource *alAudioSource,
+                               float delay = 0.0f);
+    static ALAudioSource *Play(AudioClip *audioClip,
+                               const AudioParams &params,
+                               float delay = 0.0f);
+    static ALAudioSource *Play(const Path &audioClipFilepath,
+                               const AudioParams &params,
+                               float delay = 0.0f);
 
     static void PauseAllSounds();
     static void ResumeAllSounds();
@@ -47,6 +52,9 @@ public:
     static void ClearALErrors();
     static bool CheckALError();
 
+    static String GetALErrorEnumString(ALenum errorEnum);
+    static String GetALCErrorEnumString(ALCenum errorEnum);
+
     static AudioManager *GetInstance();
 
 private:
@@ -56,18 +64,16 @@ private:
     ThreadPool m_threadPool;
     Mutex m_mutexCurrentAudios;
     bool m_playOnStartBlocked = false;
-    Map<ALAudioSource*, AudioPlayerRunnable*> m_sourcesToPlayers;
+    UMap<ALAudioSource *, AudioPlayerRunnable *> m_sourcesToPlayers;
 
     AudioManager();
-    virtual ~AudioManager();
+    virtual ~AudioManager() override;
 
     bool InitAL();
     static List<String> GetAudioDevicesList();
-    static String GetALErrorEnumString(ALenum errorEnum);
-    static String GetALCErrorEnumString(ALCenum errorEnum);
 
-    // IDestroyListener
-    void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
     void OnAudioPlayerDestroyed(AudioPlayerRunnable *audioPlayer);
     void OnALAudioSourceDestroyed(ALAudioSource *alAudioSource);
 
@@ -81,6 +87,19 @@ private:
     friend class AudioPlayerRunnable;
 };
 
-NAMESPACE_BANG_END
+#define BANG_AL_CALL(Call)                                                 \
+    {                                                                      \
+        alGetError();                                                      \
+        Call;                                                              \
+        ALenum errorEnum = alGetError();                                   \
+        if (errorEnum != AL_NO_ERROR)                                      \
+        {                                                                  \
+            Debug_Error(String("OpenAL error on call '") + String(#Call) + \
+                        String("' : ") +                                   \
+                        AudioManager::GetALErrorEnumString(errorEnum) +    \
+                        String(" (") + String(")"));                       \
+        }                                                                  \
+    }
+}
 
-#endif // AUDIOMANAGER_H
+#endif  // AUDIOMANAGER_H

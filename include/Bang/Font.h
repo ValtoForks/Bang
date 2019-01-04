@@ -1,19 +1,24 @@
 #ifndef FONT_H
 #define FONT_H
 
-#include "Bang/Map.h"
-#include "Bang/Asset.h"
-#include "Bang/Mutex.h"
-#include "Bang/Vector2.h"
-#include "Bang/Resource.h"
-#include "Bang/FontStyle.h"
+#include <SDL_ttf.h>
 
-FORWARD struct _TTF_Font;
+#include "Bang/AARect.h"
+#include "Bang/Asset.h"
+#include "Bang/BangDefines.h"
+#include "Bang/MetaNode.h"
+#include "Bang/Path.h"
+#include "Bang/String.h"
+#include "Bang/UMap.h"
+#include "Bang/Vector2.h"
+
 using TTF_Font = _TTF_Font;
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Texture2D;
+namespace Bang
+{
+template <class>
+class AssetHandle;
+class Texture2D;
 
 class Font : public Asset
 {
@@ -26,12 +31,12 @@ public:
      */
     struct GlyphMetrics
     {
-        Vector2f size    = Vector2f::Zero;
-        Vector2f bearing = Vector2f::Zero;
-        float    advance = 0;
+        Vector2f size = Vector2f::Zero();
+        Vector2f bearing = Vector2f::Zero();
+        float advance = 0;
     };
 
-    Texture2D* GetFontAtlas(int size) const;
+    Texture2D *GetFontAtlas(int size) const;
 
     Font::GlyphMetrics GetCharMetrics(int fontSize, char c) const;
     bool HasCharacter(char c) const;
@@ -44,32 +49,32 @@ public:
     Vector2 GetCharMinUv(int fontSize, char c) const;
     Vector2 GetCharMaxUv(int fontSize, char c) const;
 
-    // Resource
+    // Asset
     void Import(const Path &ttfFilepath) override;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
 
 private:
-    Path m_ttfFilepath = Path::Empty;
+    Path m_ttfFilepath = Path::Empty();
     TTF_Font *m_referenceFont = nullptr;
 
     struct FontDataCache
     {
         float height, ascent, descent, lineSkip;
-        Map<char, GlyphMetrics> charMetrics;
+        UMap<char, GlyphMetrics> charMetrics;
     };
 
     // For each font style
     FontDataCache m_referenceFontDataCache;
-    mutable Map<int, TTF_Font*> m_openFonts;
-    mutable Map<int, RH<Texture2D>> m_cachedAtlas;
-    mutable Map<int, Map<char, AARecti>> m_cachedAtlasCharRects;
-    mutable Map<int, String> m_cachedAtlasChars;
+    mutable UMap<int, TTF_Font *> m_openFonts;
+    mutable UMap<int, AH<Texture2D>> m_cachedAtlas;
+    mutable UMap<int, UMap<char, AARecti>> m_cachedAtlasCharRects;
+    mutable UMap<int, String> m_cachedAtlasChars;
 
     Font();
-    virtual ~Font();
+    virtual ~Font() override;
 
     TTF_Font *GetReferenceFont() const;
     TTF_Font *GetTTFFont(int fontSize) const;
@@ -83,7 +88,6 @@ private:
 
     void Free();
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // FONT_H
+#endif  // FONT_H

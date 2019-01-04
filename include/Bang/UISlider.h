@@ -1,21 +1,32 @@
 #ifndef UISLIDER_H
 #define UISLIDER_H
 
+#include <vector>
+
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/Color.h"
 #include "Bang/Component.h"
-#include "Bang/UIFocusable.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IValueChangedListener.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEventsValueChanged.h"
+#include "Bang/String.h"
+#include "Bang/UITheme.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class RectTransform;
-FORWARD class UIInputNumber;
-FORWARD class UIImageRenderer;
+namespace Bang
+{
+class GameObject;
+class IEventsValueChanged;
+class RectTransform;
+class UIFocusable;
+class UIImageRenderer;
+class UIInputNumber;
 
 class UISlider : public Component,
-                 public IFocusListener,
-                 public IValueChangedListener,
-                 public EventEmitter<IValueChangedListener>
+                 public EventListener<IEventsValueChanged>,
+                 public EventEmitter<IEventsValueChanged>
 {
     COMPONENT(UISlider)
 
@@ -30,41 +41,40 @@ public:
     UIInputNumber *GetInputNumber() const;
     UIImageRenderer *GetGuideRenderer() const;
     UIImageRenderer *GetHandleRenderer() const;
-    UIFocusable *GetHandleFocusable() const;
+    UIFocusable *GetSliderFocusable() const;
     bool HasFocus() const;
 
-    const Color& GetIdleColor() const;
-    const Color& GetOverColor() const;
-    const Color& GetPressedColor() const;
+    const Color &GetIdleColor() const;
+    const Color &GetOverColor() const;
+    const Color &GetPressedColor() const;
 
 private:
-    Color m_idleColor    = Color::White;
-    Color m_overColor    = Color::VeryLightBlue;
-    Color m_pressedColor = Color::Blue;
+    Color m_idleColor = Color::White();
+    Color m_overColor = UITheme::GetOverColor();
+    Color m_pressedColor = UITheme::GetSelectedColor();
 
-    UIImageRenderer *p_guideRenderer  = nullptr;
+    UIImageRenderer *p_guideRenderer = nullptr;
     UIImageRenderer *p_handleRenderer = nullptr;
-    UIFocusable *p_handleFocusable    = nullptr;
-    UIInputNumber *p_inputNumber      = nullptr;
+    UIFocusable *p_sliderFocusable = nullptr;
+    UIInputNumber *p_inputNumber = nullptr;
 
-	UISlider();
-    virtual ~UISlider();
+    UISlider();
+    virtual ~UISlider() override;
 
     // Component
     void OnUpdate() override;
 
-    // IValueChangedListener
-    void OnValueChanged(Object *object) override;
+    // IEventsValueChanged
+    void OnValueChanged(EventEmitter<IEventsValueChanged> *object) override;
 
+    float GetMouseRelativePercent() const;
     void UpdateSliderHandlerFromInputNumberValue();
     RectTransform *GetHandleRectTransform() const;
 
-    static UISlider* CreateInto(GameObject *go);
+    static UISlider *CreateInto(GameObject *go);
 
     friend class GameObjectFactory;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UISLIDER_H
-
+#endif  // UISLIDER_H

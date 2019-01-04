@@ -1,47 +1,57 @@
-#ifndef OCTREE_TCC
-#define OCTREE_TCC
+#pragma once
 
 #include <array>
 #include <queue>
 
 #include "Bang/Debug.h"
 #include "Bang/Octree.h"
+#include "Bang/Vector3.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
-template<class T, class ClassifyFunctor>
+template <class T, class ClassifyFunctor>
 Octree<T, ClassifyFunctor>::Octree()
 {
-    for (int i = 0; i < 8; ++i) { m_children[i] = nullptr; }
+    for (int i = 0; i < 8; ++i)
+    {
+        m_children[i] = nullptr;
+    }
 }
 
-template<class T, class ClassifyFunctor>
+template <class T, class ClassifyFunctor>
 Octree<T, ClassifyFunctor>::~Octree()
 {
     for (int i = 0; i < 8; ++i)
     {
         Octree *childOct = m_children[i];
-        if (childOct) { delete childOct; }
+        if (childOct)
+        {
+            delete childOct;
+        }
     }
 }
 
-template<class T, class ClassifyFunctor>
+template <class T, class ClassifyFunctor>
 void Octree<T, ClassifyFunctor>::SetAABox(const AABox &aabox)
 {
     m_aaBox = aabox;
     m_leafElements.Clear();
 }
 
-template<class T, class ClassifyFunctor>
+#include "DebugRenderer.h"
+template <class T, class ClassifyFunctor>
 uint Octree<T, ClassifyFunctor>::Fill(const Array<T> &elements, uint maxDepth)
 {
     // Returns the number of contained elements after filling
-    if (maxDepth < 0) { return -1; }
+    if (maxDepth < 0)
+    {
+        return -1;
+    }
 
     // Get elements inside me
     Array<T> containedElements;
     ClassifyFunctor classifyFunctor;
-    for (const T& element : elements)
+    for (const T &element : elements)
     {
         if (classifyFunctor(GetAABox(), element))
         {
@@ -57,32 +67,43 @@ uint Octree<T, ClassifyFunctor>::Fill(const Array<T> &elements, uint maxDepth)
         {
             // Create and fill children if we contain more than one element.
             const Vector3 minPoint = GetAABox().GetMin();
-            const Vector3 size     = GetAABox().GetSize();
-            const Vector3 &mp      = minPoint;
-            const Vector3 hs       = size / 2.0f;
+            const Vector3 size = GetAABox().GetSize();
+            const Vector3 &mp = minPoint;
+            const Vector3 hs = size / 2.0f;
 
-            std::array<Vector3, 8> sizeDirs = {{
-              Vector3(0,0,0), Vector3(0,0,1), Vector3(0,1,0), Vector3(0,1,1),
-              Vector3(1,0,0), Vector3(1,0,1), Vector3(1,1,0), Vector3(1,1,1)}};
+            std::array<Vector3, 8> sizeDirs = {{Vector3(0, 0, 0),
+                                                Vector3(0, 0, 1),
+                                                Vector3(0, 1, 0),
+                                                Vector3(0, 1, 1),
+                                                Vector3(1, 0, 0),
+                                                Vector3(1, 0, 1),
+                                                Vector3(1, 1, 0),
+                                                Vector3(1, 1, 1)}};
             for (int i = 0; i < 8; ++i)
             {
-                const Vector3& sizeDir = sizeDirs[i];
+                const Vector3 &sizeDir = sizeDirs[i];
 
                 Octree *childOctree = new Octree<T, ClassifyFunctor>();
                 childOctree->SetAABox(
-                            AABox::FromPointAndSize(mp + hs * sizeDir, hs) );
+                    AABox::FromPointAndSize(mp + hs * sizeDir, hs));
                 int childContainedElements =
-                        childOctree->Fill(containedElements, maxDepth-1);
+                    childOctree->Fill(containedElements, maxDepth - 1);
 
-                if (childContainedElements > 0) { m_children[i] = childOctree; }
-                else { delete childOctree; }
+                if (childContainedElements > 0)
+                {
+                    m_children[i] = childOctree;
+                }
+                else
+                {
+                    delete childOctree;
+                }
             }
         }
         else if (containedElements.Size() == 1)
         {
             // Otherwise, we only have one element. Add element and dont
             // keep subdividing.
-            m_leafElements.PushBack( containedElements.Front() );
+            m_leafElements.PushBack(containedElements.Front());
         }
     }
     else
@@ -95,13 +116,26 @@ uint Octree<T, ClassifyFunctor>::Fill(const Array<T> &elements, uint maxDepth)
     return containedElements.Size();
 }
 
-template<class T, class ClassifyFunctor>
+template <class T, class ClassifyFunctor>
+int Octree<T, ClassifyFunctor>::GetDepth() const
+{
+    int childrenMaxDepth = 0;
+    for (Octree *oct : GetChildren())
+    {
+        if (oct)
+        {
+            childrenMaxDepth = Math::Max(childrenMaxDepth, oct->GetDepth());
+        }
+    }
+    return childrenMaxDepth + 1;
+}
+template <class T, class ClassifyFunctor>
 const AABox Octree<T, ClassifyFunctor>::GetAABox() const
 {
     return m_aaBox;
 }
 
-template<class T, class ClassifyFunctor>
+template <class T, class ClassifyFunctor>
 Array<T> Octree<T, ClassifyFunctor>::GetElementsRecursive() const
 {
     Array<T> elements = GetElements();
@@ -109,37 +143,37 @@ Array<T> Octree<T, ClassifyFunctor>::GetElementsRecursive() const
     {
         if (child)
         {
-            elements.PushBack( child->GetElementsRecursive() );
+            elements.PushBack(child->GetElementsRecursive());
         }
     }
     return elements;
 }
 
-template<class T, class ClassifyFunctor>
-const Array<T>& Octree<T, ClassifyFunctor>::GetElements() const
+template <class T, class ClassifyFunctor>
+const Array<T> &Octree<T, ClassifyFunctor>::GetElements() const
 {
     return m_leafElements;
 }
 
-template<class T, class ClassifyFunctor>
-const std::array<Octree<T, ClassifyFunctor>*, 8>&
-Octree<T, ClassifyFunctor>::GetChildren() const
+template <class T, class ClassifyFunctor>
+const std::array<Octree<T, ClassifyFunctor> *, 8>
+    &Octree<T, ClassifyFunctor>::GetChildren() const
 {
     return m_children;
 }
 
-template<class T, class ClassifyFunctor>
-Array< const Octree<T, ClassifyFunctor>* >
+template <class T, class ClassifyFunctor>
+Array<const Octree<T, ClassifyFunctor> *>
 Octree<T, ClassifyFunctor>::GetChildrenAtLevel(
-                                uint level,
-                                bool includeEarlyPrunedInPreviousLevels) const
+    uint level,
+    bool includeEarlyPrunedInPreviousLevels) const
 {
-    using OctLevelPair = std::pair<uint, const Octree*>;
+    using OctLevelPair = std::pair<uint, const Octree *>;
 
-    Array<const Octree*> childrenAtLevelResult;
+    Array<const Octree *> childrenAtLevelResult;
 
-    std::queue< OctLevelPair > queuedOctLevelPairs;
-    queuedOctLevelPairs.push( std::make_pair(0, this) );
+    std::queue<OctLevelPair> queuedOctLevelPairs;
+    queuedOctLevelPairs.push(std::make_pair(0, this));
 
     while (!queuedOctLevelPairs.empty())
     {
@@ -164,14 +198,11 @@ Octree<T, ClassifyFunctor>::GetChildrenAtLevel(
             {
                 if (currentChild)
                 {
-                    queuedOctLevelPairs.push( std::make_pair(currentLevel + 1,
-                                                             currentChild) );
+                    queuedOctLevelPairs.push(
+                        std::make_pair(currentLevel + 1, currentChild));
                 }
             }
         }
     }
     return childrenAtLevelResult;
 }
-
-#endif // OCTREE_TCC
-

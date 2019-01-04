@@ -1,19 +1,16 @@
-#ifndef WINDOWMANAGER_TCC
-#define WINDOWMANAGER_TCC
+#pragma once
 
 #include "Bang.h"
+#include "Bang/Window.h"
+#include "Bang/WindowManager.h"
 
-NAMESPACE_BANG_BEGIN
-
-template<class WinT>
-WinT* WindowManager::CreateWindow(uint flags)
+namespace Bang
+{
+template <class WinT>
+WinT *WindowManager::CreateWindow(uint flags)
 {
     WinT *win = new WinT();
     SetupWindow(win, flags);
     return win;
 }
-
-NAMESPACE_BANG_END
-
-#endif // WINDOWMANAGER_TCC
-
+}

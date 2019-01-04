@@ -1,6 +1,6 @@
 #include "Bang/Ray2D.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 Ray2D::Ray2D()
 {
@@ -40,4 +40,3 @@ const Vector2 &Ray2D::GetDirection() const
 {
     return m_direction;
 }
-

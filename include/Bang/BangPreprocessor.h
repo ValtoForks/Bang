@@ -2,36 +2,31 @@
 #define BANGPREPROCESSOR_H
 
 #include "Bang/Array.h"
+#include "Bang/BangDefines.h"
 #include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class ReflectStruct;
+class Path;
 
 class BangPreprocessor
 {
 public:
+    const static Array<String> Modifiers;
+    const static Array<String> RVariablePrefixes;
+    const static Array<String> RStructPrefixes;
+    const static String ReflectDefinitionsDefineName;
+    const static String GetReflectionInfoPtrFuncName;
+
     static void Preprocess(const Path &filepath);
     static void Preprocess(const String &source,
                            String *reflectionHeaderSource,
                            bool *preprocessedSomething);
+    static Array<ReflectStruct> GetReflectStructs(const Path &sourcePath);
+    static Array<ReflectStruct> GetReflectStructs(const String &source);
 
-public:
-    const static Array<String> VarTypeInt;
-    const static Array<String> VarTypeBool;
-    const static Array<String> VarTypeFloat;
-    const static Array<String> VarTypeColor;
-    const static Array<String> VarTypeDouble;
-    const static Array<String> VarTypeString;
-    const static Array<String> VarTypeVector2;
-    const static Array<String> VarTypeVector3;
-    const static Array<String> VarTypeVector4;
-    const static Array<String> VarTypeQuaternion;
-
-    const static Array<String> Modifiers;
-    const static Array<String> VarTypes;
-    const static Array<String> RVariablePrefixes;
-    const static Array<String> RStructPrefixes;
-    const static String ReflectDefinitionsDefineName;
-    const static String ReflectionInfoVarName;
+    BangPreprocessor() = delete;
 
     static void RemoveComments(String *source);
 
@@ -46,10 +41,8 @@ public:
                              char openingBrace,
                              char closingBrace);
 
-    static void SkipBlanks(String::Iterator *it,
-                           String::Iterator end);
-    static void SkipUntilNextBlank(String::Iterator *it,
-                                   String::Iterator end);
+    static void SkipBlanks(String::Iterator *it, String::Iterator end);
+    static void SkipUntilNextBlank(String::Iterator *it, String::Iterator end);
     static void SkipUntilNext(String::Iterator *it,
                               String::Iterator end,
                               const Array<String> &particles);
@@ -58,10 +51,7 @@ public:
                              String::Iterator end,
                              String::Iterator *wordBegin,
                              String::Iterator *wordEnd);
-
-    BangPreprocessor();
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // BANGPREPROCESSOR_H
+#endif  // BANGPREPROCESSOR_H

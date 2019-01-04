@@ -1,45 +1,52 @@
 #ifndef LINERENDERER_H
 #define LINERENDERER_H
 
+#include "Bang/AABox.h"
 #include "Bang/Array.h"
-#include "Bang/Vector3.h"
+#include "Bang/AssetHandle.h"
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
 #include "Bang/Renderer.h"
-#include "Bang/ResourceHandle.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Mesh;
+namespace Bang
+{
+class ICloneable;
+class Mesh;
+class MetaNode;
 
 class LineRenderer : public Renderer
 {
     COMPONENT(LineRenderer)
 
 public:
-    virtual void SetPoint(int i, const Vector3& point);
-    virtual void SetPoints(const Array<Vector3>& points);
+    void SetPoint(int i, const Vector3 &point);
+    void SetPoints(const Array<Vector3> &points);
 
-    const Array<Vector3>& GetPoints() const;
+    const Array<Vector3> &GetPoints() const;
     virtual AABox GetAABBox() const override;
 
+    // Renderer
+    void Bind() override;
+
     // ICloneable
-    virtual void CloneInto(ICloneable *clone) const override;
+    virtual void CloneInto(ICloneable *clone, bool cloneGUID) const override;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
 
 protected:
     LineRenderer();
-    virtual ~LineRenderer();
+    virtual ~LineRenderer() override;
 
     // Renderer
     virtual void OnRender() override;
 
 private:
-    RH<Mesh> p_mesh;
+    AH<Mesh> p_mesh;
     Array<Vector3> m_points;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // LINERENDERER_H
+#endif  // LINERENDERER_H

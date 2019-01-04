@@ -1,93 +1,103 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
-#include "Bang/GL.h"
-#include "Bang/GLObject.h"
+#include <vector>
+
+#include "Bang/AABox.h"
+#include "Bang/Array.tcc"
+#include "Bang/AssetHandle.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GL.h"
+#include "Bang/IEventsAsset.h"
+#include "Bang/IEventsRendererChanged.h"
+#include "Bang/MetaNode.h"
 #include "Bang/RenderPass.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/ResourceHandle.h"
-#include "Bang/IMaterialChangedListener.h"
-#include "Bang/IRendererChangedListener.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Camera;
-FORWARD class Material;
-FORWARD class SceneManager;
+namespace Bang
+{
+class Camera;
+class ICloneable;
+class Material;
+class Asset;
+class ShaderProgram;
 
 class Renderer : public Component,
-                 public GLObject,
-                 public IMaterialChangedListener,
-                 public EventEmitter<IRendererChangedListener>
+                 public EventListener<IEventsAsset>,
+                 public EventEmitter<IEventsRendererChanged>
 {
     COMPONENT(Renderer)
 
 public:
+    virtual void Bind();
+    virtual void SetUniformsOnBind(ShaderProgram *sp);
     virtual void OnRender();
-
-    // GLObject
-    virtual void Bind() const override;
-    virtual void UnBind() const override;
+    virtual void UnBind();
 
     // Component
     virtual void OnRender(RenderPass renderPass) override;
 
     void SetVisible(bool visible);
-    void SetMaterial(Material *mat);
-    void SetRenderWireframe(bool renderWireframe);
-    void SetCullFace(GL::Face cullMode);
-    void SetCulling(bool cull);
+    void SetMaterial(Material *sharedMaterial,
+                     Material *materialCopy = nullptr);
+    void SetDepthMask(bool depthMask);
+    void SetCastsShadows(bool castsShadows);
+    void SetReceivesShadows(bool receivesShadows);
     void SetViewProjMode(GL::ViewProjMode viewProjMode);
     void SetRenderPrimitive(GL::Primitive renderPrimitive);
-    void SetLineWidth(float w);
+    void SetUseReflectionProbes(bool useReflectionProbes);
 
     bool IsVisible() const;
-    Material* GetSharedMaterial() const;
-    Material* GetActiveMaterial() const;
-    Material* GetMaterial() const;
-    bool IsRenderWireframe() const;
-    GL::Face GetCullFace() const;
-    bool GetCulling() const;
+    bool GetDepthMask() const;
+    Material *GetSharedMaterial() const;
+    Material *GetActiveMaterial() const;
+    Material *GetCopiedMaterial() const;
+    Material *GetMaterial() const;
+    bool GetCastsShadows() const;
+    bool GetReceivesShadows() const;
     GL::ViewProjMode GetViewProjMode() const;
     GL::Primitive GetRenderPrimitive() const;
-    float GetLineWidth() const;
+    bool GetUseReflectionProbes() const;
 
-    // IMaterialChangedListener
-    void OnMaterialChanged(const Material *changedMaterial) override;
+    // IEventsAssetChanged
+    void OnAssetChanged(Asset *changedAsset) override;
 
     // Renderer
     virtual AABox GetAABBox() const;
     virtual AARect GetBoundingRect(Camera *camera) const;
 
-    // ICloneable
-    virtual void CloneInto(ICloneable *clone) const override;
-
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void Reflect() override;
 
 protected:
     Renderer();
-    virtual ~Renderer();
+    virtual ~Renderer() override;
 
     void PropagateRendererChanged();
 
+    // Renderer
+    virtual Matrix4 GetModelMatrixUniform() const;
+
 private:
     bool m_visible = true;
-    bool m_cullling = true;
-    float m_lineWidth = 1.0f;
-    bool m_renderWireframe = false;
-    GL::Face m_cullFace = GL::Face::Back;
-    GL::Primitive m_renderPrimitive = GL::Primitive::Triangles;
-    GL::ViewProjMode m_viewProjMode = GL::ViewProjMode::World;
+    bool m_depthMask = true;
+    bool m_castsShadows = true;
+    bool m_receivesShadows = true;
+    bool m_useReflectionProbes = false;
+    GL::Primitive m_renderPrimitive = GL::Primitive::TRIANGLES;
+    GL::ViewProjMode m_viewProjMode = GL::ViewProjMode::WORLD;
 
-    mutable RH<Material> p_material;
-    RH<Material> p_sharedMaterial;
+    mutable AH<Material> p_copiedMaterial;
+    AH<Material> p_sharedMaterial;
 
     friend class GEngine;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // RENDERER_H
+#endif  // RENDERER_H

@@ -1,33 +1,31 @@
 #ifndef IMAGEEFFECTS_H
 #define IMAGEEFFECTS_H
 
-#include "Bang/Image.h"
+#include "Bang/BangDefines.h"
+#include "Bang/ImageIO.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class ImageEffects
 {
 public:
-
     // Zero  Color (0,0,0,0): background
     // Other Color:           foreground
-    static void SignedDistanceField(const Imageb &inputImageBW,
-                                    Imageb *distanceFieldOutputImage,
+    static void SignedDistanceField(const Image &inputImageBW,
+                                    Image *distanceFieldOutputImage,
                                     int distanceRadius);
 
     // Zero  Color (0,0,0,0): background
     // Other Color:           foreground
-    static void Outline(const Imageb &inputImageBW,
-                        Imageb *outlineOutputImageBW);
+    static void Outline(const Image &inputImageBW, Image *outlineOutputImageBW);
 
-    static bool Diff(const Imageb &inputImage1,
-                     const Imageb &inputImage2,
-                     Imageb *diffOutputImage,
-                     bool diffAlpha = false);
+    static bool Albedo(const Image &inputImage1,
+                       const Image &inputImage2,
+                       Image *diffOutputImage,
+                       bool diffAlpha = false);
 
     ImageEffects() = delete;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // DISTANCEFIELDER_H
+#endif  // DISTANCEFIELDER_H

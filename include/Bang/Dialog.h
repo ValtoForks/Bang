@@ -1,44 +1,55 @@
 #ifndef DIALOG_H
 #define DIALOG_H
 
-#include "Bang/Bang.h"
+#include <stack>
 
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
 #include "Bang/Path.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Scene;
-FORWARD class UIButton;
-FORWARD class IFocusable;
-FORWARD class UIFileList;
-FORWARD class UIInputText;
-FORWARD class DialogWindow;
+namespace Bang
+{
+class DialogWindow;
+class Scene;
+class UIButton;
+class UIFileList;
+class UIInputText;
+class Window;
 
 class Dialog
 {
 public:
-    enum YesNoCancel { Yes, No, Cancel };
+    enum YesNoCancel
+    {
+        YES,
+        NO,
+        CANCEL
+    };
 
-    static DialogWindow* Error(const String &title,
-                               const String &msg);
+    static DialogWindow *Error(const String &title, const String &msg);
     static String GetString(const String &title,
                             const String &msg,
                             const String &hint = "");
     static YesNoCancel GetYesNoCancel(const String &title, const String &msg);
     static Path OpenFilePath(const String &title,
                              const Array<String> &extensions = {},
-                             const Path &initialDirPath = Path::Empty);
+                             const Path &initialDirPath = Path::Empty());
     static Path OpenDirectory(const String &title,
-                              const Path &initialDirPath = Path::Empty);
+                              const Path &initialDirPath = Path::Empty());
     static Path SaveFilePath(const String &title,
                              const String &extension,
-                             const Path &initialDirPath = Path::Empty,
+                             const Path &initialDirPath = Path::Empty(),
                              const String &initialFileName = "Unnamed");
 
-    static DialogWindow* BeginCreateDialog(const String &title,
-                                           int sizeX, int sizeY,
-                                           bool resizable);
-    static void EndCreateDialog(DialogWindow *dialogWindow);
+    static DialogWindow *BeginDialogCreation(const String &title,
+                                             int sizeX,
+                                             int sizeY,
+                                             bool resizable,
+                                             bool modal);
+    static void EndDialogCreation(Scene *scene);
+
     static void EndCurrentDialog();
 
     Dialog() = delete;
@@ -49,8 +60,11 @@ private:
     static String s_resultString;
     static YesNoCancel s_resultYesNoCancel;
 
-    static DialogWindow *s_currentDialog;
+    static std::stack<DialogWindow *> s_dialogCreation_dialogWindows;
+    static std::stack<Window *> s_dialogCreation_prevActiveWindows;
+    static std::stack<bool> s_dialogCreation_modalBooleans;
 
+    static DialogWindow *s_currentDialog;
 
     static void CreateSaveFilePathSceneInto(Scene *scene,
                                             const String &extension,
@@ -66,21 +80,19 @@ private:
                                             UIButton **outBotLeftButton,
                                             UIButton **outBotRightButton,
                                             UIInputText **botInputText);
-    static Scene* CreateGetStringScene(const String &msg,
-                                       const String &hint);
-    static Scene* CreateYesNoCancelScene(const String &msg);
+    static Scene *CreateGetStringScene(const String &msg, const String &hint);
+    static Scene *CreateYesNoCancelScene(const String &msg);
 
-    static Scene* CreateMsgScene(const String &msg);
+    static Scene *CreateMsgScene(const String &msg);
 
-    static void OnOkClicked(IFocusable *button);
-    static void OnYesClicked(IFocusable *button);
-    static void OnNoClicked(IFocusable *button);
-    static void OnCancelClicked(IFocusable *button);
+    static void OnOkClicked();
+    static void OnYesClicked();
+    static void OnNoClicked();
+    static void OnCancelClicked();
+    static void OnNeedToEndDialog();
     static void AcceptDialogPath(const Path &path);
     static void OnDialogPathChanged(const Path &path);
-    static void OnNeedToEndDialog(IFocusable *button);
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // DIALOG_H
+#endif  // DIALOG_H

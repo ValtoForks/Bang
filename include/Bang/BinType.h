@@ -3,14 +3,13 @@
 
 #include "Bang/Bang.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 enum class BinType
 {
-    Debug,
-    Release
+    BIN_DEBUG,
+    BIN_RELEASE
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // BINTYPE_H
+#endif  // BINTYPE_H

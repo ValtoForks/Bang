@@ -3,10 +3,13 @@
 
 #include "Bang/Bang.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+enum class Stretch
+{
+    NONE = 0,
+    FULL
+};
+}
 
-enum class Stretch { None = 0, Full };
-
-NAMESPACE_BANG_END
-
-#endif // STRETCH_H
+#endif  // STRETCH_H

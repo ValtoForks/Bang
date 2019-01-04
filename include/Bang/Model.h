@@ -2,56 +2,53 @@
 #define MODEL_H
 
 #include "Bang/Asset.h"
+#include "Bang/BangDefines.h"
+#include "Bang/Map.h"
+#include "Bang/Mesh.h"
 #include "Bang/ModelIO.h"
-#include "Bang/ResourceHandle.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD struct ModelIONode;
+namespace Bang
+{
+template <class>
+class Array;
+template <class>
+class AssetHandle;
+class Animation;
+class GameObject;
+class Material;
+class MetaNode;
+class Path;
 
 class Model : public Asset
 {
     ASSET(Model)
 
 public:
-	Model();
-	virtual ~Model();
+    Model();
+    virtual ~Model() override;
 
     GameObject *CreateGameObjectFromModel() const;
 
-    void AddMesh(Mesh *mesh, Material *material,
-                 const String &meshName, const String &materialName);
+    const String &GetRootGameObjectName() const;
+    const Array<AH<Mesh>> &GetMeshes() const;
+    const Array<AH<Material>> &GetMaterials() const;
+    const Array<AH<Animation>> &GetAnimations() const;
+    const Array<String> &GetMeshesNames() const;
+    const Array<String> &GetMaterialsNames() const;
+    const Array<String> &GetAnimationsNames() const;
+    const Map<String, Mesh::Bone> &GetAllBones() const;
 
-    RH<Mesh> GetMeshByName(const String &meshName);
-    RH<Material> GetMaterialByName(const String &materialName);
-
-    const Array< RH<Mesh> >& GetMeshes() const;
-    const Array< RH<Material> >& GetMaterials() const;
-    const Array<String>& GetMeshesNames() const;
-    const Array<String>& GetMaterialsNames() const;
-
-    virtual GUID::GUIDType GetNextInsideFileGUID() const override;
-    virtual Resource* GetInsideFileResource(GUID::GUIDType insideFileGUID) const override;
-    virtual String GetInsideFileResourceName(GUID::GUIDType insideFileGUID) const override;
-
-    // Resource
+    // Asset
     void Import(const Path &modelFilepath) override;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
 
 private:
     ModelIOScene m_modelScene;
-
-    std::pair<Resource*, String>
-        GetInsideFileResourceAndName(GUID::GUIDType insideFileGUID) const;
-
-    static String GetNewName(const String &originalName,
-                             const Array<String> &existingNames);
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // MODEL_H
-
+#endif  // MODEL_H

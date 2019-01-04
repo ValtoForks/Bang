@@ -2,14 +2,15 @@
 #define TRIANGLE_H
 
 #include <array>
+#include <cstddef>
 
-#include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Vector3.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Plane;
-FORWARD class Polygon;
+namespace Bang
+{
+class Plane;
+class Polygon;
 
 class Triangle
 {
@@ -22,22 +23,22 @@ public:
 
     void SetPoint(int i, const Vector3 &point);
 
+    float GetArea() const;
     Plane GetPlane() const;
     Vector3 GetNormal() const;
-    const std::array<Vector3, 3>& GetPoints() const;
-    const Vector3& GetPoint(int i) const;
+    Vector3 GetBarycentricCoordinates(const Vector3 &point) const;
+    const std::array<Vector3, 3> &GetPoints() const;
+    const Vector3 &GetPoint(int i) const;
     Polygon ToPolygon() const;
 
-    Vector3& operator[](std::size_t i);
-    const Vector3& operator[](std::size_t i) const;
+    Vector3 &operator[](std::size_t i);
+    const Vector3 &operator[](std::size_t i) const;
 
 private:
     std::array<Vector3, 3> m_points;
 };
 
 Triangle operator*(const Matrix4 &m, const Triangle &t);
+}
 
-NAMESPACE_BANG_END
-
-#endif // TRIANGLE_H
-
+#endif  // TRIANGLE_H

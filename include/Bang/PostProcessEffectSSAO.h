@@ -1,14 +1,21 @@
 ﻿#ifndef POSTPROCESSEFFECTSSAO_H
 #define POSTPROCESSEFFECTSSAO_H
 
-#include "Bang/Bang.h"
-#include "Bang/ShaderProgram.h"
-#include "Bang/ResourceHandle.h"
+#include "Bang/Array.h"
+#include "Bang/AssetHandle.h"
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/MetaNode.h"
 #include "Bang/PostProcessEffect.h"
+#include "Bang/RenderPass.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Framebuffer;
+namespace Bang
+{
+class Framebuffer;
+class ICloneable;
+class ShaderProgram;
+class Texture2D;
 
 class PostProcessEffectSSAO : public PostProcessEffect
 {
@@ -23,9 +30,11 @@ public:
     void SetBlurRadius(int blurRadius);
     void SetNumRandomSamples(int numRandomSamples);
     void SetNumRandomAxes(int numAxes);
+    void SetSeparable(bool separable);
     void SetBilateralBlurEnabled(bool bilateralBlurEnabled);
     void SetFBSize(const Vector2 &fbSize);
 
+    bool GetSeparable() const;
     int GetBlurRadius() const;
     float GetSSAORadius() const;
     float GetSSAOIntensity() const;
@@ -33,34 +42,34 @@ public:
     int GetNumRandomAxes() const;
     bool GetBilateralBlurEnabled() const;
     const Vector2 &GetFBSize() const;
-    Texture2D* GetSSAOTexture() const;
+    Texture2D *GetSSAOTexture() const;
+
+    // IReflectable
+    virtual void Reflect() override;
 
 private:
     float m_ssaoIntensity = 1.0f;
     float m_ssaoRadius = -1;
-    int m_blurRadius = -1;
+    uint m_blurRadius = 4;
     int m_numAxes = -1;
+    bool m_separable = true;
     int m_numRandomOffsetsHemisphere = -1;
-    bool m_bilateralBlurEnabled = true;
-    Vector2 m_fbSize = Vector2::One;
+    Vector2 m_fbSize = Vector2::One();
 
-    Array<float> m_blurKernel;
     Array<Vector3> m_randomHemisphereOffsets;
-    RH<Texture2D> m_randomAxesTexture;
+    AH<Texture2D> m_randomAxesTexture;
 
     Framebuffer *m_ssaoFB = nullptr;
-    RH<ShaderProgram> p_ssaoShaderProgram;
-    RH<ShaderProgram> p_blurXShaderProgram;
-    RH<ShaderProgram> p_blurYShaderProgram;
-    RH<ShaderProgram> p_applySSAOShaderProgram;
+    AH<Texture2D> m_blurAuxiliarTexture;
+    AH<Texture2D> m_blurredSSAOTexture;
+    AH<ShaderProgram> p_ssaoShaderProgram;
+    AH<ShaderProgram> p_applySSAOShaderProgram;
 
     void GenerateRandomAxesTexture(int numAxes);
 
-	PostProcessEffectSSAO();
-	virtual ~PostProcessEffectSSAO();
+    PostProcessEffectSSAO();
+    virtual ~PostProcessEffectSSAO() override;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // POSTPROCESSEFFECTSSAO_H
-
+#endif  // POSTPROCESSEFFECTSSAO_H

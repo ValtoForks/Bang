@@ -1,9 +1,14 @@
 #include "Bang/UIVerticalLayout.h"
 
-USING_NAMESPACE_BANG
+#include "Bang/Axis.h"
+#include "Bang/ClassDB.h"
+#include "Bang/Stretch.h"
 
-UIVerticalLayout::UIVerticalLayout() : UIDirLayout(Axis::Vertical)
+using namespace Bang;
+
+UIVerticalLayout::UIVerticalLayout() : UIDirLayout(Axis::VERTICAL)
 {
-    SetChildrenHorizontalStretch(Stretch::Full);
-    SetChildrenVerticalStretch(Stretch::None);
+    SET_INSTANCE_CLASS_ID(UIVerticalLayout)
+    SetChildrenHorizontalStretch(Stretch::FULL);
+    SetChildrenVerticalStretch(Stretch::NONE);
 }

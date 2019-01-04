@@ -1,51 +1,60 @@
 #include "Bang/UIContentSizeFitter.h"
 
-#include "Bang/AARect.h"
-#include "Bang/XMLNode.h"
-#include "Bang/UIRenderer.h"
+#include "Bang/Assert.h"
+#include "Bang/ClassDB.h"
 #include "Bang/GameObject.h"
+#include "Bang/IInvalidatable.h"
+#include "Bang/MetaNode.h"
+#include "Bang/MetaNode.tcc"
 #include "Bang/RectTransform.h"
-#include "Bang/UILayoutElement.h"
+#include "Bang/StreamOperators.h"
 #include "Bang/UILayoutManager.h"
 
-USING_NAMESPACE_BANG
+namespace Bang
+{
+class ILayoutController;
+}
+
+using namespace Bang;
 
 UIContentSizeFitter::UIContentSizeFitter()
 {
+    SET_INSTANCE_CLASS_ID(UIContentSizeFitter)
 }
 
 UIContentSizeFitter::~UIContentSizeFitter()
 {
-
 }
 
 void UIContentSizeFitter::ApplyLayout(Axis axis)
 {
     RectTransform *rt = GetGameObject()->GetRectTransform();
-    if (!rt) { return; }
-
-    if (axis == Axis::Horizontal &&
-        GetHorizontalSizeType() != LayoutSizeType::None)
+    if (!rt)
     {
-        Vector2i hSize (UILayoutManager::GetSize(GetGameObject(),
-                                                 GetHorizontalSizeType()));
+        return;
+    }
+
+    if (axis == Axis::HORIZONTAL &&
+        GetHorizontalSizeType() != LayoutSizeType::NONE)
+    {
+        Vector2i hSize(
+            UILayoutManager::GetSize(GetGameObject(), GetHorizontalSizeType()));
         rt->SetWidthFromPivot(hSize.x);
     }
 
-    if (axis == Axis::Vertical &&
-        GetVerticalSizeType() != LayoutSizeType::None)
+    if (axis == Axis::VERTICAL && GetVerticalSizeType() != LayoutSizeType::NONE)
     {
-        Vector2i vSize (UILayoutManager::GetSize(GetGameObject(),
-                                                 GetVerticalSizeType()));
+        Vector2i vSize(
+            UILayoutManager::GetSize(GetGameObject(), GetVerticalSizeType()));
         rt->SetHeightFromPivot(vSize.y);
     }
 }
 
 void UIContentSizeFitter::SetHorizontalSizeType(LayoutSizeType sizeType)
 {
-    ASSERT(sizeType == LayoutSizeType::None ||
-           sizeType == LayoutSizeType::Min  ||
-           sizeType == LayoutSizeType::Preferred);
+    ASSERT(sizeType == LayoutSizeType::NONE ||
+           sizeType == LayoutSizeType::MIN ||
+           sizeType == LayoutSizeType::PREFERRED);
 
     if (sizeType != GetHorizontalSizeType())
     {
@@ -56,9 +65,9 @@ void UIContentSizeFitter::SetHorizontalSizeType(LayoutSizeType sizeType)
 
 void UIContentSizeFitter::SetVerticalSizeType(LayoutSizeType sizeType)
 {
-    ASSERT(sizeType == LayoutSizeType::None ||
-           sizeType == LayoutSizeType::Min  ||
-           sizeType == LayoutSizeType::Preferred);
+    ASSERT(sizeType == LayoutSizeType::NONE ||
+           sizeType == LayoutSizeType::MIN ||
+           sizeType == LayoutSizeType::PREFERRED);
 
     if (sizeType != GetVerticalSizeType())
     {
@@ -77,29 +86,31 @@ LayoutSizeType UIContentSizeFitter::GetVerticalSizeType() const
     return m_verticalSizeType;
 }
 
-void UIContentSizeFitter::ImportXML(const XMLNode &xmlInfo)
+void UIContentSizeFitter::ImportMeta(const MetaNode &metaNode)
 {
-    Component::ImportXML(xmlInfo);
+    Component::ImportMeta(metaNode);
 
-    if (xmlInfo.Contains("HorizontalSizeType"))
-    { SetHorizontalSizeType( xmlInfo.Get<LayoutSizeType>("HorizontalSizeType") ); }
+    if (metaNode.Contains("HorizontalSizeType"))
+    {
+        SetHorizontalSizeType(
+            metaNode.Get<LayoutSizeType>("HorizontalSizeType"));
+    }
 
-    if (xmlInfo.Contains("VerticalSizeType"))
-    { SetVerticalSizeType( xmlInfo.Get<LayoutSizeType>("VerticalSizeType") ); }
+    if (metaNode.Contains("VerticalSizeType"))
+    {
+        SetVerticalSizeType(metaNode.Get<LayoutSizeType>("VerticalSizeType"));
+    }
 }
 
-void UIContentSizeFitter::ExportXML(XMLNode *xmlInfo) const
+void UIContentSizeFitter::ExportMeta(MetaNode *metaNode) const
 {
-    Component::ExportXML(xmlInfo);
+    Component::ExportMeta(metaNode);
 
-    xmlInfo->Set("HorizontalSizeType", GetHorizontalSizeType());
-    xmlInfo->Set("VerticalSizeType", GetVerticalSizeType());
+    metaNode->Set("HorizontalSizeType", GetHorizontalSizeType());
+    metaNode->Set("VerticalSizeType", GetVerticalSizeType());
 }
 
 void UIContentSizeFitter::OnInvalidated()
 {
     IInvalidatable<ILayoutController>::OnInvalidated();
-
 }
-
-

@@ -1,38 +1,49 @@
 #ifndef UIINPUTTEXT_H
 #define UIINPUTTEXT_H
 
+#include <vector>
+
+#include "Bang/Array.tcc"
+#include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
-#include "Bang/IEventEmitter.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/DPtr.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsFocus.h"
+#include "Bang/IEventsValueChanged.h"
 #include "Bang/ILayoutElement.h"
-#include "Bang/IFocusListener.h"
-#include "Bang/IValueChangedListener.h"
+#include "Bang/String.h"
+#include "Bang/UIImageRenderer.h"
+#include "Bang/UILabel.h"
+#include "Bang/UIScrollArea.h"
+#include "Bang/UITextCursor.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class UILabel;
-FORWARD class GameObject;
-FORWARD class UIFocusable;
-FORWARD class UITextCursor;
-FORWARD class UIScrollArea;
-FORWARD class RectTransform;
-FORWARD class UITextRenderer;
-FORWARD class UIImageRenderer;
+namespace Bang
+{
+class GameObject;
+class IEventsValueChanged;
+class RectTransform;
+class UIFocusable;
+class UITextRenderer;
 
 class UIInputText : public Component,
-                    public EventEmitter<IValueChangedListener>,
-                    public EventEmitter<IFocusListener>,
-                    public IFocusListener,
+                    public EventEmitter<IEventsValueChanged>,
+                    public EventEmitter<IEventsFocus>,
+                    public EventListener<IEventsFocus>,
                     public ILayoutElement
 {
     COMPONENT(UIInputText)
 
 public:
-    void OnStart() override;
     void OnUpdate() override;
 
     void SetCursorIndex(int index);
-    void SetSelection(int selectionBeginIndex,
-                      int selectionEndIndex);
+    void SetSelection(int selectionBeginIndex, int selectionEndIndex);
 
     String GetSelectedText() const;
     void ReplaceSelectedText(const String &replaceStr);
@@ -40,9 +51,9 @@ public:
     void SetBlocked(bool blocked);
     void SetAllowedCharacters(const String &allowedCharacters);
 
-    // IFocusListener
-    virtual void OnFocusTaken(IFocusable *focusable) override;
-    virtual void OnFocusLost(IFocusable *focusable) override;
+    // IEventsFocus
+    virtual UIEventResult OnUIEvent(UIFocusable *focusable,
+                                    const UIEvent &event) override;
 
     // ILayoutElement
     virtual void CalculateLayout(Axis axis) override;
@@ -51,6 +62,7 @@ public:
     UILabel *GetLabel() const;
     UITextCursor *GetCursor() const;
     UITextRenderer *GetText() const;
+    UIFocusable *GetFocusable() const;
     UIImageRenderer *GetBackground() const;
 
 private:
@@ -61,17 +73,16 @@ private:
     bool m_isBlocked = false;
     String m_allowedCharacters = "";
 
-    UILabel *p_label = nullptr;
-    UITextCursor *p_cursor = nullptr;
-    UIFocusable *p_focusable = nullptr;
-    UIScrollArea *p_scrollArea = nullptr;
-    UIImageRenderer *p_background = nullptr;
+    DPtr<UILabel> p_label;
+    DPtr<UITextCursor> p_cursor;
+    DPtr<UIImageRenderer> p_border;
+    DPtr<UIScrollArea> p_scrollArea;
+    DPtr<UIImageRenderer> p_background;
 
     UIInputText();
-    virtual ~UIInputText();
+    virtual ~UIInputText() override;
 
     void HandleTyping();
-    void HandleKeySelection(bool existedSelection);
     void HandleCursorIndices(bool existedSelection);
     String FilterAllowedInputText(const String &inputText);
 
@@ -83,8 +94,8 @@ private:
     RectTransform *GetTextRT() const;
     RectTransform *GetRT() const;
 
-    bool IsDelimiter(char initialChar, char currentChar) const;
-    int GetWordSplitIndex(int cursorIndex, bool forward) const;
+    bool IsWordBoundary(char prevChar, char nextChar) const;
+    int GetCtrlStopIndex(int cursorIndex, bool forward) const;
 
     void UpdateCursorRenderer();
     void UpdateTextScrolling();
@@ -94,7 +105,6 @@ private:
 
     friend class GameObjectFactory;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // UIINPUTTEXT_H
+#endif  // UIINPUTTEXT_H

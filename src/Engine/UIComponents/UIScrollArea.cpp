@@ -1,16 +1,20 @@
 #include "Bang/UIScrollArea.h"
 
+#include "Bang/ClassDB.h"
+#include "Bang/Color.h"
 #include "Bang/GameObject.h"
-#include "Bang/UIRectMask.h"
+#include "Bang/GameObject.tcc"
+#include "Bang/GameObjectFactory.h"
 #include "Bang/RectTransform.h"
 #include "Bang/UIImageRenderer.h"
-#include "Bang/GameObjectFactory.h"
-#include "Bang/UIContentSizeFitter.h"
+#include "Bang/UIRectMask.h"
+#include "Bang/Vector2.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 UIScrollArea::UIScrollArea()
 {
+    SET_INSTANCE_CLASS_ID(UIScrollArea)
 }
 
 UIScrollArea::~UIScrollArea()
@@ -33,12 +37,12 @@ void UIScrollArea::SetScrolling(const Vector2i &scrollPx)
 
 void UIScrollArea::SetScrollingX(int scrollPxX)
 {
-    SetScrolling( Vector2i(scrollPxX, GetScrolling().y) );
+    SetScrolling(Vector2i(scrollPxX, GetScrolling().y));
 }
 
 void UIScrollArea::SetScrollingY(int scrollPxY)
 {
-    SetScrolling( Vector2i(GetScrolling().x, scrollPxY) );
+    SetScrolling(Vector2i(GetScrolling().x, scrollPxY));
 }
 
 void UIScrollArea::SetContainedGameObject(GameObject *go)
@@ -53,34 +57,49 @@ void UIScrollArea::SetContainedGameObject(GameObject *go)
         p_containedGo = go;
         if (GetContainedGameObject())
         {
-            GetContainedGameObject()->SetParent( GetContainer() );
+            GetContainedGameObject()->SetParent(GetContainer());
         }
     }
 }
 
-UIRectMask *UIScrollArea::GetMask() const { return p_mask; }
-GameObject *UIScrollArea::GetContainer() const { return p_container; }
-GameObject *UIScrollArea::GetContainedGameObject() const { return p_containedGo; }
-UIImageRenderer *UIScrollArea::GetBackground() const { return p_bg; }
-const Vector2i &UIScrollArea::GetScrolling() const { return m_scrollingPx; }
+UIRectMask *UIScrollArea::GetMask() const
+{
+    return p_mask;
+}
+GameObject *UIScrollArea::GetContainer() const
+{
+    return p_container;
+}
+GameObject *UIScrollArea::GetContainedGameObject() const
+{
+    return p_containedGo;
+}
+UIImageRenderer *UIScrollArea::GetBackground() const
+{
+    return p_bg;
+}
+const Vector2i &UIScrollArea::GetScrolling() const
+{
+    return m_scrollingPx;
+}
 
 void UIScrollArea::UpdatePaddings()
 {
-    int marginLeft  =  GetScrolling().x;
+    int marginLeft = GetScrolling().x;
     int marginRight = -GetScrolling().x;
-    int margingTop  =  GetScrolling().y;
-    int marginBot   = -GetScrolling().y;
+    int margingTop = GetScrolling().y;
+    int marginBot = -GetScrolling().y;
 
     RectTransform *rt = GetContainer()->GetRectTransform();
     rt->SetMargins(marginLeft, marginBot, marginRight, margingTop);
 }
 
-UIScrollArea* UIScrollArea::CreateInto(GameObject *go)
+UIScrollArea *UIScrollArea::CreateInto(GameObject *go)
 {
     UIScrollArea *scrollArea = go->AddComponent<UIScrollArea>();
 
     UIImageRenderer *bg = go->AddComponent<UIImageRenderer>();
-    bg->SetTint(Color::White);
+    bg->SetTint(Color::White());
 
     UIRectMask *mask = go->AddComponent<UIRectMask>();
 

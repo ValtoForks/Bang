@@ -3,8 +3,8 @@
 
 #include "Bang/Bang.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 template <class T>
 class IInvalidatable
 {
@@ -19,20 +19,32 @@ public:
         }
     }
 
-    bool IsInvalid() const { return m_invalid; }
+    bool IsInvalid() const
+    {
+        return m_invalid;
+    }
 
 protected:
-    IInvalidatable() {}
-    virtual ~IInvalidatable() {}
+    IInvalidatable()
+    {
+    }
+    virtual ~IInvalidatable()
+    {
+    }
 
     void Validate() const
     {
         SetInvalid(false);
     }
 
-    bool IsFirstInvalidation() const { return m_isFirstInvalidation; }
+    bool IsFirstInvalidation() const
+    {
+        return m_isFirstInvalidation;
+    }
 
-    virtual void OnInvalidated() {}
+    virtual void OnInvalidated()
+    {
+    }
 
 private:
     mutable bool m_invalid = true;
@@ -43,8 +55,6 @@ private:
         m_invalid = invalid;
     }
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // IINVALIDATABLE_H_H
-
+#endif  // IINVALIDATABLE_H_H

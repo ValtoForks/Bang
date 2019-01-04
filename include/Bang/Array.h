@@ -1,75 +1,90 @@
 #ifndef ARRAY_H
 #define ARRAY_H
 
-#include <vector>
 #include <functional>
+#include <vector>
 
-#include "Bang/TypeTraits.h"
 #include "Bang/Containers.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 template <class T>
 class Array
 {
 public:
+    using Ref = typename std::vector<T>::reference;
+    using ConstRef = typename std::vector<T>::const_reference;
     using Iterator = typename std::vector<T>::iterator;
     using RIterator = typename std::vector<T>::reverse_iterator;
     using Const_Iterator = typename std::vector<T>::const_iterator;
     using Const_RIterator = typename std::vector<T>::const_reverse_iterator;
 
+    static const Array<T> &Empty();
+
     Array();
     Array(const std::vector<T> &v);
-    Array(int size);
-    Array(int size, const T& initValue);
+    explicit Array(std::size_t size);
+    explicit Array(std::size_t size, const T &initValue);
     Array(std::initializer_list<T> l);
     template <class OtherIterator>
     explicit Array(OtherIterator begin, OtherIterator end);
-    template < template<class> class Container>
+    template <template <class> class Container>
     explicit Array(const Container<T> &container);
 
-    void Insert(const T& x, int index);
+    void Insert(const T &x, int index);
 
-    void PushBack(const T& x);
+    void PushBack(const T &x);
+    void PushFront(const T &x);
 
-    template<class IteratorClass>
+    template <class IteratorClass>
     void PushBack(IteratorClass itBegin, IteratorClass itEnd);
 
     template <template <class OtherT> class Container, class OtherT>
-    void PushBack(const Container<OtherT>& container);
+    void PushBack(const Container<OtherT> &container);
 
-    const T* Data() const;
+    T *Data();
+    const T *Data() const;
 
-    Const_Iterator Find(const T& x) const;
-    Iterator Find(const T& x);
-    Iterator FindLast(const T& x);
+    Const_Iterator Find(const T &x) const;
+    Iterator Find(const T &x);
+    Iterator FindLast(const T &x);
     bool Contains(const T &x) const;
 
-    const T& Front() const;
-    const T& Back() const;
-    T& Front();
-    T& Back();
+    const T &Front() const;
+    const T &Back() const;
+    T &Front();
+    T &Back();
 
     Iterator Remove(const Iterator &first, const Iterator &last);
     Iterator Remove(Iterator it);
-    Iterator Remove(const T& x);
-    void RemoveAll(const T& x);
+    Iterator Remove(const T &x);
+    Iterator RemoveByIndex(std::size_t i);
+    void RemoveAll(const T &x);
 
-    T& PopBack();
+    void PopBack();
+    void PopFront();
 
-    int IndexOf(const T& x) const;
+    int IndexOf(const T &x) const;
 
-    void Resize(int n);
+    void Reserve(std::size_t n);
+    void Resize(std::size_t n, const T &value = T());
     uint Size() const;
     void Clear();
     bool IsEmpty() const;
 
-    T& At(std::size_t i);
-    const T& At(std::size_t i) const;
-    T& operator[](std::size_t i);
-    const T& operator[](std::size_t i) const;
+    void Reverse();
+    void Sort();
+    template <class StrictWeakOrdering>
+    void Sort(const StrictWeakOrdering &sortClass);
 
-    template< template <class> class Container, class OtherT = T>
+    typename Array<T>::Ref At(std::size_t i);
+    typename Array<T>::ConstRef At(std::size_t i) const;
+    typename Array<T>::Ref operator[](std::size_t i);
+    typename Array<T>::ConstRef operator[](std::size_t i) const;
+    bool operator==(const Array<T> &rhs) const;
+    bool operator!=(const Array<T> &rhs) const;
+
+    template <template <class> class Container, class OtherT = T>
     Container<OtherT> To() const;
 
     Iterator Begin();
@@ -90,20 +105,8 @@ public:
 private:
     std::vector<T> m_vector;
 };
-
-template<class T, class... Args>
-Array<const T&> MakeArray(const T& x, Args&&... args)
-{
-    if (sizeof...(args) == 0) { return Array<const T&>(); }
-
-    Array<const T&> res;
-    res.PushBack( Cast<const T&>(x) );
-    for (auto arg : {args...}) { res.PushBack( Cast<const T&>(arg) ); }
-    return res;
-}
-
-NAMESPACE_BANG_END
+}  // namespace Bang
 
 #include "Array.tcc"
 
-#endif // ARRAY_H
+#endif  // ARRAY_H

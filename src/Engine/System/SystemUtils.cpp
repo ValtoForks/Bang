@@ -1,23 +1,43 @@
 #include "Bang/SystemUtils.h"
 
-#include "Bang/Debug.h"
-#include "Bang/Library.h"
+#include "Bang/Application.h"
 #include "Bang/SystemProcess.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
+
+SystemUtils::SystemUtils()
+{
+}
 
 void SystemUtils::System(const String &command,
-                         const List<String> &argsList,
+                         const Array<String> &argsArray,
                          String *output,
                          bool *success)
 {
     SystemProcess process;
-    process.Start(command, argsList);
+    process.Start(command, argsArray);
     process.WaitUntilFinished();
-    Debug_DLog("System: '" << command << " " << String::Join(argsList, " ") << "'");
 
     String out = process.ReadStandardOutput() + process.ReadStandardError();
-    if (output) { *output = out; }
-    if (success) { *success = process.FinishedOk(); }
+    if (output)
+    {
+        *output = out;
+    }
+
+    if (success)
+    {
+        *success = (process.GetExitCode() == 0);
+    }
+
     process.Close();
+}
+
+Mutex *SystemUtils::GetMutex()
+{
+    return &(SystemUtils::GetInstance()->m_mutex);
+}
+
+SystemUtils *SystemUtils::GetInstance()
+{
+    return Application::GetInstance()->GetSystemUtils();
 }

@@ -1,11 +1,27 @@
 #include "Bang/IReflectable.h"
 
-#include "Bang/BPReflectedStruct.h"
+#include "Bang/Assets.h"
+#include "Bang/ReflectStruct.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
-const BPReflectedStruct &IReflectable::GetReflectionInfo() const
+const ReflectStruct &IReflectable::GetReflectStruct() const
 {
-    static BPReflectedStruct empty;
-    return empty;
+    // if (!m_alreadyReflected)
+    {
+        m_reflectStruct.Clear();
+        const_cast<IReflectable *>(this)->Reflect();
+        m_alreadyReflected = true;
+    }
+    return m_reflectStruct;
+}
+
+void IReflectable::Reflect()
+{
+    // Empty
+}
+
+ReflectStruct *IReflectable::GetReflectStructPtr() const
+{
+    return &m_reflectStruct;
 }

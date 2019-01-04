@@ -1,34 +1,42 @@
 #ifndef UILABEL_H
 #define UILABEL_H
 
+#include <vector>
+
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
-#include "Bang/IFocusable.h"
-#include "Bang/IFocusListener.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/DPtr.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GameObject.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsFocus.h"
+#include "Bang/String.h"
+#include "Bang/UIFocusable.h"
+#include "Bang/UILayoutElement.h"
+#include "Bang/UIRectMask.h"
+#include "Bang/UITextRenderer.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class RectTransform;
 
-FORWARD class UIRectMask;
-FORWARD class UIFocusable;
-FORWARD class RectTransform;
-FORWARD class UITextRenderer;
-
-class UILabel : public Component,
-                public IFocusable,
-                public IFocusListener
+class UILabel : public Component, public EventListener<IEventsFocus>
 {
     COMPONENT(UILabel)
 
 public:
-	virtual ~UILabel();
+    virtual ~UILabel() override;
 
-    void OnStart() override;
     void OnUpdate() override;
 
     void SetCursorIndex(int index);
     void SetSelectionIndex(int index);
     void SetSelectable(bool selectable);
     void SetSelection(int cursorIndex, int selectionIndex);
-    String GetSelectedText() const;
 
     void SelectAll();
     void ResetSelection();
@@ -43,36 +51,34 @@ public:
     float GetCursorXViewportNDC(int cursorIndex) const;
     float GetCursorXLocalNDC(int cursorIndex) const;
 
-    bool IsSelectAllOnFocus() const;
     bool IsSelectingWithMouse() const;
 
     UIRectMask *GetMask() const;
+    String GetSelectedText() const;
     UITextRenderer *GetText() const;
-    IFocusable *GetFocusable() const;
+    UIFocusable *GetFocusable() const;
+    bool GetSelectAllOnFocus() const;
 
-    void SetFocusable(IFocusable *focusable);
-
-    // IFocusListener
-    virtual void OnFocusTaken(IFocusable *focusable) override;
-    virtual void OnFocusLost(IFocusable *focusable) override;
+    // IEventsFocus
+    virtual UIEventResult OnUIEvent(UIFocusable *focusable,
+                                    const UIEvent &event) override;
 
 private:
     int m_cursorIndex = 0;
     int m_selectionIndex = 0;
-    bool m_firstSelectAll = true;
     bool m_selectingWithMouse = false;
     bool m_selectable = Undef<bool>();
     bool m_selectAllOnFocusTaken = false;
 
-    UIRectMask *p_mask = nullptr;
-    UITextRenderer *p_text = nullptr;
-    IFocusable *p_focusable = nullptr;
-    GameObject *p_selectionQuad = nullptr;
+    DPtr<UIRectMask> p_mask;
+    DPtr<UITextRenderer> p_text;
+    DPtr<UIFocusable> p_focusable;
+    DPtr<GameObject> p_selectionQuad;
+    DPtr<UILayoutElement> p_layoutElement;
 
     UILabel();
 
     int GetClosestCharIndexTo(const Vector2 &coordsLocalNDC);
-    void HandleClipboardCopy();
     void HandleMouseSelection();
     void UpdateSelectionQuadRenderer();
 
@@ -83,8 +89,6 @@ private:
 
     friend class GameObjectFactory;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UILABEL_H_H
-
+#endif  // UILABEL_H_H

@@ -1,10 +1,13 @@
 #ifndef UIVERTICALLAYOUT_H
 #define UIVERTICALLAYOUT_H
 
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/String.h"
 #include "Bang/UIDirLayout.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class UIVerticalLayout : public UIDirLayout
 {
     COMPONENT(UIVerticalLayout)
@@ -12,7 +15,6 @@ class UIVerticalLayout : public UIDirLayout
 public:
     UIVerticalLayout();
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIVERTICALLAYOUT_H
+#endif  // UIVERTICALLAYOUT_H

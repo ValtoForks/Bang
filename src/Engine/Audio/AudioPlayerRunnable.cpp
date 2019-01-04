@@ -1,10 +1,12 @@
 #include "Bang/AudioPlayerRunnable.h"
 
+#include "Bang/ALAudioSource.h"
 #include "Bang/AudioClip.h"
 #include "Bang/AudioManager.h"
-#include "Bang/ALAudioSource.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/IEventsDestroy.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 AudioPlayerRunnable::AudioPlayerRunnable(AudioClip *clip,
                                          ALAudioSource *alAudioSource,
@@ -13,24 +15,53 @@ AudioPlayerRunnable::AudioPlayerRunnable(AudioClip *clip,
     p_audioClip = clip;
     p_alAudioSource = alAudioSource;
     m_delayInSeconds = delayInSeconds;
+
+    GetALAudioSource()->EventEmitter<IEventsDestroy>::RegisterListener(this);
     SetAutoDelete(true);
 }
 
 AudioPlayerRunnable::~AudioPlayerRunnable()
 {
     AudioManager::GetInstance()->OnAudioFinishedPlaying(this);
-    EventEmitter<IDestroyListener>::PropagateToListeners(
-                          &IDestroyListener::OnDestroyed, this);
+    EventEmitter<IEventsDestroy>::PropagateToListeners(
+        &IEventsDestroy::OnDestroyed, this);
+
+    if (GetALAudioSource() && GetALAudioSource()->m_autoDelete)
+    {
+        delete p_alAudioSource;
+    }
 }
 
-void AudioPlayerRunnable::Resume() { p_alAudioSource->Play(); }
-void AudioPlayerRunnable::Pause() { p_alAudioSource->Pause(); }
+void AudioPlayerRunnable::Resume()
+{
+    if (GetALAudioSource())
+    {
+        GetALAudioSource()->Play();
+    }
+}
+
+void AudioPlayerRunnable::Pause()
+{
+    if (GetALAudioSource())
+    {
+        GetALAudioSource()->Pause();
+    }
+}
+
 void AudioPlayerRunnable::Stop()
 {
     m_forceExit = true;
-    p_alAudioSource->Stop();
+    if (GetALAudioSource())
+    {
+        GetALAudioSource()->Stop();
+    }
 }
-AudioClip *AudioPlayerRunnable::GetAudioClip() const { return p_audioClip; }
+
+AudioClip *AudioPlayerRunnable::GetAudioClip() const
+{
+    return p_audioClip;
+}
+
 ALAudioSource *AudioPlayerRunnable::GetALAudioSource() const
 {
     return p_alAudioSource;
@@ -38,17 +69,29 @@ ALAudioSource *AudioPlayerRunnable::GetALAudioSource() const
 
 void AudioPlayerRunnable::Run()
 {
-    if (!p_audioClip->IsLoaded()) { return; }
+    if (!p_audioClip->IsLoaded())
+    {
+        return;
+    }
 
-    if (m_delayInSeconds > 0.0f) // Wait delay
+    if (m_delayInSeconds > 0.0f)  // Wait delay
     {
         Thread::SleepCurrentThread(m_delayInSeconds);
     }
 
-    p_alAudioSource->Play(); // Play and wait until source is stopped
-    do
+    if (GetALAudioSource())
     {
-        Thread::SleepCurrentThread(0.3f);
+        GetALAudioSource()->Play();  // Play and wait until source is stopped
+        do
+        {
+            Thread::SleepCurrentThread(0.3f);
+        } while (!m_forceExit && !GetALAudioSource()->IsStopped());
     }
-    while ( !m_forceExit && !p_alAudioSource->IsStopped() );
+}
+
+void AudioPlayerRunnable::OnDestroyed(EventEmitter<IEventsDestroy> *object)
+{
+    ASSERT(object == GetALAudioSource());
+    p_alAudioSource = nullptr;
+    m_forceExit = true;
 }

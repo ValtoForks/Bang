@@ -1,12 +1,9 @@
 #include "Bang/Ray.h"
 
-#include <algorithm>
+#include "Bang/Matrix4.h"
+#include "Bang/Vector4.h"
 
-#include "Bang/Plane.h"
-#include "Bang/Sphere.h"
-#include "Bang/Geometry.h"
-
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 Ray::Ray()
 {
@@ -22,7 +19,10 @@ Ray::~Ray()
 {
 }
 
-void Ray::SetOrigin(const Vector3 &origin) { m_origin = origin; }
+void Ray::SetOrigin(const Vector3 &origin)
+{
+    m_origin = origin;
+}
 void Ray::SetDirection(const Vector3 &direction)
 {
     m_direction = direction.NormalizedSafe();
@@ -43,3 +43,12 @@ const Vector3 &Ray::GetDirection() const
     return m_direction;
 }
 
+namespace Bang
+{
+Ray operator*(const Matrix4 &m, const Ray &ray)
+{
+    Vector3 newDir = m.TransformedVector(ray.GetDirection());
+    Vector3 newOrigin = m.TransformedPoint(ray.GetOrigin());
+    return Ray(newOrigin, newDir);
+}
+}

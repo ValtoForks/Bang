@@ -1,52 +1,207 @@
 #include "Bang/ShaderProgramFactory.h"
 
-USING_NAMESPACE_BANG
+#include "Bang/Assets.h"
+#include "Bang/Assets.tcc"
+#include "Bang/Map.tcc"
+#include "Bang/Paths.h"
+#include "Bang/ShaderProgram.h"
 
-Path ShaderProgramFactory::GetDefaultVertexShaderPath()
+using namespace Bang;
+
+Path ShaderProgramFactory::GetDefaultVertexShaderPath(RenderPass renderPass)
 {
-    return EPATH("Shaders/G_Default.vert");
+    switch (renderPass)
+    {
+        case RenderPass::SCENE_OPAQUE:
+            return ShaderProgramFactory::GetEngineShadersDir().Append(
+                "Default.vert");
+            break;
+
+        case RenderPass::SCENE_TRANSPARENT:
+            return ShaderProgramFactory::GetEngineShadersDir().Append(
+                "DefaultTransparent.vert");
+            break;
+
+        default: break;
+    }
+    return ShaderProgramFactory::GetDefaultVertexShaderPath(
+        RenderPass::SCENE_OPAQUE);
 }
 
-Path ShaderProgramFactory::GetDefaultFragmentShaderPath()
+Path ShaderProgramFactory::GetDefaultFragmentShaderPath(RenderPass renderPass)
 {
-    return EPATH("Shaders/G_Default.frag");
+    switch (renderPass)
+    {
+        case RenderPass::SCENE_OPAQUE:
+            return ShaderProgramFactory::GetEngineShadersDir().Append(
+                "Default.frag");
+            break;
+
+        case RenderPass::SCENE_TRANSPARENT:
+            return ShaderProgramFactory::GetEngineShadersDir().Append(
+                "DefaultTransparent.frag");
+            break;
+
+        default: break;
+    }
+    return ShaderProgramFactory::GetDefaultFragmentShaderPath(
+        RenderPass::SCENE_OPAQUE);
 }
 
-Path ShaderProgramFactory::GetPostProcessVertexShaderPath()
+Path ShaderProgramFactory::GetScreenPassVertexShaderPath()
 {
-    return EPATH("Shaders/PP_ScreenPass.vert");
+    return ShaderProgramFactory::GetEngineShadersDir().Append(
+        "ScreenPass.vert");
 }
 
-ShaderProgram *ShaderProgramFactory::GetDefault()
+ShaderProgram *ShaderProgramFactory::GetDefault(RenderPass renderPass)
 {
-    return Get(ShaderProgramFactory::GetDefaultVertexShaderPath(),
-               ShaderProgramFactory::GetDefaultFragmentShaderPath());
+    return Get(ShaderProgramFactory::GetDefaultVertexShaderPath(renderPass),
+               ShaderProgramFactory::GetDefaultFragmentShaderPath(renderPass));
 }
 
 ShaderProgram *ShaderProgramFactory::GetDefaultPostProcess()
 {
-    return Get(ShaderProgramFactory::GetPostProcessVertexShaderPath(),
-               EPATH("Shaders/Blur.frag"));
+    return Get(ShaderProgramFactory::GetScreenPassVertexShaderPath(),
+               ShaderProgramFactory::GetEngineShadersDir().Append("Blur.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetPointLightShadowMap()
+{
+    return Get(ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "PointLightShadowMap.vert"),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "PointLightShadowMap.geom"),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "PointLightShadowMap.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetPointLightDeferredScreenPass()
+{
+    return Get(ShaderProgramFactory::GetScreenPassVertexShaderPath(),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "PointLightDeferred.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetDecal()
+{
+    return Get(
+        ShaderProgramFactory::GetEngineShadersDir().Append("Decal.vert"),
+        ShaderProgramFactory::GetEngineShadersDir().Append("Decal.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetKawaseBlur()
+{
+    return Get(
+        ShaderProgramFactory::GetScreenPassVertexShaderPath(),
+        ShaderProgramFactory::GetEngineShadersDir().Append("KawaseBlur.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetSeparableBlur()
+{
+    return Get(ShaderProgramFactory::GetScreenPassVertexShaderPath(),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "SeparableBlur.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetSeparableBlurCubeMap()
+{
+    return Get(ShaderProgramFactory::GetScreenPassVertexShaderPath(),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "SeparableBlurCM.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetRenderTextureToViewport()
+{
+    return Get(ShaderProgramFactory::GetScreenPassVertexShaderPath(),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "RenderTexture.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetRenderTextureToViewportGamma()
+{
+    return Get(ShaderProgramFactory::GetScreenPassVertexShaderPath(),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "RenderTextureGamma.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetDirectionalLightShadowMap()
+{
+    return Get(ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "DirectionalLightShadowMap.vert"),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "DirectionalLightShadowMap.frag"));
+}
+
+ShaderProgram *ShaderProgramFactory::GetDirectionalLightDeferredScreenPass()
+{
+    return Get(ShaderProgramFactory::GetScreenPassVertexShaderPath(),
+               ShaderProgramFactory::GetEngineShadersDir().Append(
+                   "DirectionalLightDeferred.frag"));
 }
 
 ShaderProgram *ShaderProgramFactory::Get(const Path &vShaderPath,
                                          const Path &fShaderPath)
 {
+    return Get(vShaderPath, Path::Empty(), fShaderPath, false);
+}
+
+ShaderProgram *ShaderProgramFactory::Get(const Path &vShaderPath,
+                                         const Path &gShaderPath,
+                                         const Path &fShaderPath)
+{
+    return Get(vShaderPath, gShaderPath, fShaderPath, true);
+}
+
+ShaderProgram *ShaderProgramFactory::Get(const Path &shaderPath)
+{
+    ShaderProgramFactory *spf = ShaderProgramFactory::GetActive();
+    if (!spf->m_shaderCache.ContainsKey(shaderPath))
+    {
+        AH<ShaderProgram> shaderProgram;
+        shaderProgram = Assets::Create<ShaderProgram>();
+        shaderProgram.Get()->Load(shaderPath);
+        spf->m_shaderCache.Add(shaderPath, shaderProgram);
+    }
+    return spf->m_shaderCache.Get(shaderPath).Get();
+}
+
+Path ShaderProgramFactory::GetEngineShadersDir()
+{
+    return EPATH("Shaders");
+}
+
+ShaderProgram *ShaderProgramFactory::Get(const Path &vShaderPath,
+                                         const Path &gShaderPath,
+                                         const Path &fShaderPath,
+                                         bool useGeometryShader)
+{
     ShaderProgramFactory *spf = ShaderProgramFactory::GetActive();
 
-    const auto &shaderPathsPair = std::make_pair(vShaderPath, fShaderPath);
-    if ( !spf->m_cache.ContainsKey(shaderPathsPair) )
+    std::tuple<Path, Path, Path> shaderPathsTuple =
+        std::make_tuple(vShaderPath, gShaderPath, fShaderPath);
+
+    if (!spf->m_cache.ContainsKey(shaderPathsTuple))
     {
-        RH<ShaderProgram> shaderProgram =
-                    Resources::Create<ShaderProgram>(vShaderPath, fShaderPath);
-        spf->m_cache.Add(shaderPathsPair, shaderProgram);
+        AH<ShaderProgram> shaderProgram;
+        if (useGeometryShader)
+        {
+            shaderProgram = Assets::Create<ShaderProgram>(
+                vShaderPath, gShaderPath, fShaderPath);
+        }
+        else
+        {
+            shaderProgram =
+                Assets::Create<ShaderProgram>(vShaderPath, fShaderPath);
+        }
+        spf->m_cache.Add(shaderPathsTuple, shaderProgram);
     }
 
-    return spf->m_cache.Get(shaderPathsPair).Get();
+    return spf->m_cache.Get(shaderPathsTuple).Get();
 }
 
 ShaderProgramFactory *ShaderProgramFactory::GetActive()
 {
-    Resources *rs = Resources::GetActive();
+    Assets *rs = Assets::GetInstance();
     return rs ? rs->GetShaderProgramFactory() : nullptr;
 }

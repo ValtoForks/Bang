@@ -1,14 +1,23 @@
 #ifndef DIRECTIONALLIGHT_H
 #define DIRECTIONALLIGHT_H
 
+#include "Bang/AABox.h"
+#include "Bang/Array.h"
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
 #include "Bang/Light.h"
 #include "Bang/Matrix4.h"
-#include "Bang/Framebuffer.h"
+#include "Bang/MetaNode.h"
+#include "Bang/String.h"
+#include "Bang/Texture2D.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Scene;
-FORWARD class Texture2D;
+namespace Bang
+{
+class Framebuffer;
+class GameObject;
+class ICloneable;
+class Renderer;
+class ShaderProgram;
 
 class DirectionalLight : public Light
 {
@@ -17,41 +26,42 @@ class DirectionalLight : public Light
 public:
     void SetShadowDistance(float shadowDistance);
 
+    float GetShadowMapNearDistance() const override;
+    float GetShadowMapFarDistance() const override;
     float GetShadowDistance() const;
-    Texture2D* GetShadowMap() const;
-
-    // Component
-    void OnRender(RenderPass rp) override;
 
     // Light
-    void SetUniformsBeforeApplyingLight(Material* mat) const override;
+    Texture2D *GetShadowMapTexture() const override;
 
-    // ICloneable
-    virtual void CloneInto(ICloneable *clone) const override;
+    // Light
+    void SetUniformsBeforeApplyingLight(ShaderProgram *sp) const override;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    void Reflect() override;
 
 protected:
+    AH<Texture2D> m_blurredShadowMapTexture, m_blurAuxiliarTexture;
     Framebuffer *m_shadowMapFramebuffer = nullptr;
-    Matrix4 m_lastUsedShadowMapViewProj = Matrix4::Identity;
-    float m_shadowDistance = 5.0f;
+    Matrix4 m_lastUsedShadowMapViewProj = Matrix4::Identity();
+    float m_shadowDistance = 100.0f;
 
     DirectionalLight();
-    virtual ~DirectionalLight();
+    virtual ~DirectionalLight() override;
+
+    AABox GetShadowCastersAABox(
+        const Array<Renderer *> &shadowCastersRenderers) const;
 
     // Light
-    void RenderShadowMaps_() override;
+    void RenderShadowMaps_(GameObject *go) override;
 
-    void GetShadowMapMatrices(Scene *scene,
-                              Matrix4 *viewMatrix,
-                              Matrix4 *projMatrix) const;
-    Matrix4 GetShadowMapMatrix(Scene *scene) const;
-    Matrix4 GetLightDirMatrix() const;
-    AABox GetShadowMapOrthoBox(Scene *scene) const;
+    void GetWorldToShadowMapMatrices(
+        Matrix4 *viewMatrix,
+        Matrix4 *projMatrix,
+        const Array<Renderer *> &shadowCastersRenderers) const;
+    Matrix4 GetLightToWorldMatrix() const;
+    AABox GetShadowMapOrthoBox(
+        const Array<Renderer *> &shadowCastersRenderers) const;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // DIRECTIONALLIGHT_H
+#endif  // DIRECTIONALLIGHT_H

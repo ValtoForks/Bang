@@ -1,24 +1,37 @@
 #include "Bang/Renderer.h"
 
-#include <functional>
-
-#include "Bang/GL.h"
 #include "Bang/AABox.h"
-#include "Bang/AARect.h"
+#include "Bang/Assert.h"
+#include "Bang/Assets.h"
+#include "Bang/Assets.tcc"
 #include "Bang/Camera.h"
-#include "Bang/GBuffer.h"
+#include "Bang/ClassDB.h"
+#include "Bang/Extensions.h"
 #include "Bang/GEngine.h"
-#include "Bang/Transform.h"
-#include "Bang/Resources.h"
+#include "Bang/GL.h"
 #include "Bang/GLUniforms.h"
+#include "Bang/GUID.h"
 #include "Bang/GameObject.h"
-#include "Bang/ShaderProgram.h"
+#include "Bang/ICloneable.h"
+#include "Bang/IEventsAsset.h"
+#include "Bang/IEventsRendererChanged.h"
+#include "Bang/Material.h"
 #include "Bang/MaterialFactory.h"
+#include "Bang/MetaNode.h"
+#include "Bang/MetaNode.tcc"
+#include "Bang/ShaderProgram.h"
+#include "Bang/Transform.h"
 
-USING_NAMESPACE_BANG
+namespace Bang
+{
+class Asset;
+}
+
+using namespace Bang;
 
 Renderer::Renderer()
 {
+    SET_INSTANCE_CLASS_ID(Renderer);
     SetMaterial(MaterialFactory::GetDefault().Get());
 }
 
@@ -28,44 +41,64 @@ Renderer::~Renderer()
 
 Material *Renderer::GetActiveMaterial() const
 {
-    if (p_material) { return GetMaterial(); }
+    if (GetCopiedMaterial())
+    {
+        return GetCopiedMaterial();
+    }
     return GetSharedMaterial();
+}
+
+Material *Renderer::GetCopiedMaterial() const
+{
+    return p_copiedMaterial.Get();
 }
 
 void Renderer::OnRender(RenderPass renderPass)
 {
     Component::OnRender(renderPass);
 
-    Material *mat = GetActiveMaterial();
-    if (IsVisible() && mat && mat->GetRenderPass() == renderPass)
+    GEngine *ge = GEngine::GetInstance();
+    ASSERT(ge);
+
+    if (ge->CanRenderNow(this, renderPass))
     {
-        GEngine::GetActive()->Render(this);
+        ge->Render(this);
     }
 }
-void Renderer::OnRender() {}
 
-void Renderer::Bind() const
+void Renderer::OnRender()
 {
-    GL::SetViewProjMode( GetViewProjMode() );
-    GL::SetWireframe( IsRenderWireframe() );
-
-    GL::SetCullFace( GetCullFace() ); // Culling states
-    GL::SetEnabled(GL::Test::CullFace, GetCulling());
-
-    GL::LineWidth( GetLineWidth() );
-    GL::PointSize( GetLineWidth() );
-
-    Transform *t = GetGameObject()->GetTransform();
-    GLUniforms::SetModelMatrix( t ? t->GetLocalToWorldMatrix() : Matrix4::Identity );
-
-    if (GetActiveMaterial()) { GetActiveMaterial()->Bind(); }
+    // Empty
 }
 
-void Renderer::UnBind() const
+void Renderer::Bind()
 {
-    if (GetActiveMaterial()) { GetActiveMaterial()->UnBind(); }
+    GL::SetViewProjMode(GetViewProjMode());
+    GLUniforms::SetModelMatrix(GetModelMatrixUniform());
+    GL::SetDepthMask(GetDepthMask());
+
+    if (Material *mat = GetActiveMaterial())
+    {
+        if (ShaderProgram *sp = mat->GetShaderProgram())
+        {
+            if (sp->IsLinked())
+            {
+                mat->Bind();
+                SetUniformsOnBind(sp);
+            }
+        }
+    }
 }
 
+void Renderer::SetUniformsOnBind(ShaderProgram *sp)
+{
+    sp->SetBool(GLUniforms::UniformName_ReceivesShadows, GetReceivesShadows());
+}
+
+void Renderer::UnBind()
+{
+    // if (GetActiveMaterial()) { GetActiveMaterial()->UnBind(); }
+}
 
 void Renderer::SetVisible(bool visible)
 {
@@ -76,52 +109,48 @@ void Renderer::SetVisible(bool visible)
     }
 }
 
-
-void Renderer::SetMaterial(Material *mat)
+void Renderer::SetMaterial(Material *sharedMaterial, Material *materialCopy)
 {
-    if (GetSharedMaterial() != mat)
+    if (GetSharedMaterial() != sharedMaterial)
     {
         if (GetSharedMaterial())
         {
-            GetSharedMaterial()->EventEmitter<IMaterialChangedListener>::
-                                 UnRegisterListener(this);
+            GetSharedMaterial()->EventEmitter<IEventsAsset>::UnRegisterListener(
+                this);
         }
-
-        if (p_material.Get())
+        if (GetCopiedMaterial())
         {
-            p_material.Get()->EventEmitter<IMaterialChangedListener>::
-                              UnRegisterListener(this);
+            GetCopiedMaterial()->EventEmitter<IEventsAsset>::UnRegisterListener(
+                this);
         }
 
-        p_sharedMaterial.Set(mat);
-        p_material.Set(nullptr);
+        p_sharedMaterial.Set(sharedMaterial);
+        p_copiedMaterial.Set(materialCopy);
 
         if (GetSharedMaterial())
         {
-            GetSharedMaterial()->EventEmitter<IMaterialChangedListener>::
-                                 RegisterListener(this);
+            GetSharedMaterial()->EventEmitter<IEventsAsset>::RegisterListener(
+                this);
+        }
+        if (GetCopiedMaterial())
+        {
+            GetCopiedMaterial()->EventEmitter<IEventsAsset>::RegisterListener(
+                this);
         }
 
         PropagateRendererChanged();
     }
 }
 
-void Renderer::SetLineWidth(float w)
+void Renderer::SetDepthMask(bool depthMask)
 {
-    if (w != GetLineWidth())
+    if (depthMask != GetDepthMask())
     {
-        m_lineWidth = w;
+        m_depthMask = depthMask;
         PropagateRendererChanged();
     }
 }
-void Renderer::SetRenderWireframe(bool renderWireframe)
-{
-    if (renderWireframe != IsRenderWireframe())
-    {
-        m_renderWireframe = renderWireframe;
-        PropagateRendererChanged();
-    }
-}
+
 void Renderer::SetViewProjMode(GL::ViewProjMode viewProjMode)
 {
     if (viewProjMode != GetViewProjMode())
@@ -139,84 +168,130 @@ void Renderer::SetRenderPrimitive(GL::Primitive renderPrimitive)
     }
 }
 
-bool Renderer::IsVisible() const { return m_visible; }
-Material* Renderer::GetSharedMaterial() const { return p_sharedMaterial.Get(); }
-
-void Renderer::OnMaterialChanged(const Material*) { PropagateRendererChanged(); }
-bool Renderer::IsRenderWireframe() const { return m_renderWireframe; }
-AABox Renderer::GetAABBox() const { return AABox::Empty; }
-void Renderer::SetCullFace(GL::Face cullMode) { m_cullFace = cullMode; }
-void Renderer::SetCulling(bool culling) { m_cullling = culling; }
-GL::Face Renderer::GetCullFace() const { return m_cullFace; }
-bool Renderer::GetCulling() const { return m_cullling; }
-GL::ViewProjMode Renderer::GetViewProjMode() const { return m_viewProjMode; }
-GL::Primitive Renderer::GetRenderPrimitive() const { return m_renderPrimitive; }
-float Renderer::GetLineWidth() const { return m_lineWidth; }
-Material* Renderer::GetMaterial() const
+void Renderer::SetUseReflectionProbes(bool useReflectionProbes)
 {
-    if (!p_material)
+    if (useReflectionProbes != GetUseReflectionProbes())
+    {
+        m_useReflectionProbes = useReflectionProbes;
+        PropagateRendererChanged();
+    }
+}
+void Renderer::SetCastsShadows(bool castsShadows)
+{
+    if (castsShadows != GetCastsShadows())
+    {
+        m_castsShadows = castsShadows;
+        PropagateRendererChanged();
+    }
+}
+void Renderer::SetReceivesShadows(bool receivesShadows)
+{
+    if (receivesShadows != GetReceivesShadows())
+    {
+        m_receivesShadows = receivesShadows;
+        PropagateRendererChanged();
+    }
+}
+
+bool Renderer::IsVisible() const
+{
+    return m_visible;
+}
+
+bool Renderer::GetDepthMask() const
+{
+    return m_depthMask;
+}
+Material *Renderer::GetSharedMaterial() const
+{
+    return p_sharedMaterial.Get();
+}
+
+void Renderer::OnAssetChanged(Asset *)
+{
+    PropagateRendererChanged();
+}
+
+AABox Renderer::GetAABBox() const
+{
+    return AABox::Empty();
+}
+
+bool Renderer::GetCastsShadows() const
+{
+    return m_castsShadows;
+}
+
+bool Renderer::GetReceivesShadows() const
+{
+    return m_receivesShadows;
+}
+
+GL::ViewProjMode Renderer::GetViewProjMode() const
+{
+    return m_viewProjMode;
+}
+
+GL::Primitive Renderer::GetRenderPrimitive() const
+{
+    return m_renderPrimitive;
+}
+
+bool Renderer::GetUseReflectionProbes() const
+{
+    return m_useReflectionProbes;
+}
+Material *Renderer::GetMaterial() const
+{
+    if (!GetCopiedMaterial())
     {
         if (GetSharedMaterial())
         {
-            p_material = Resources::Clone<Material>(GetSharedMaterial());
-            p_material.Get()->EventEmitter<IMaterialChangedListener>::
-                              RegisterListener(const_cast<Renderer*>(this));
+            p_copiedMaterial = Assets::Clone<Material>(GetSharedMaterial());
+            GetCopiedMaterial()->EventEmitter<IEventsAsset>::RegisterListener(
+                const_cast<Renderer *>(this));
         }
     }
-    return p_material.Get();
+    return GetCopiedMaterial();
 }
 
 AARect Renderer::GetBoundingRect(Camera *camera) const
 {
-    return AARect::NDCRect;
-    return camera ? camera->GetViewportBoundingRect(GetAABBox()) :
-                    AARect::Zero;
+    return AARect::NDCRect();
+    return camera ? camera->GetViewportBoundingAARectNDC(GetAABBox())
+                  : AARect::Zero();
 }
 
 void Renderer::PropagateRendererChanged()
 {
-    EventEmitter<IRendererChangedListener>::PropagateToListeners(
-                &IRendererChangedListener::OnRendererChanged, this);
+    EventEmitter<IEventsRendererChanged>::PropagateToListeners(
+        &IEventsRendererChanged::OnRendererChanged, this);
 }
 
-void Renderer::CloneInto(ICloneable *clone) const
+Matrix4 Renderer::GetModelMatrixUniform() const
 {
-    Component::CloneInto(clone);
-    Renderer *r = Cast<Renderer*>(clone);
-    r->SetMaterial(GetSharedMaterial());
-    r->SetRenderWireframe(IsRenderWireframe());
-    r->SetCullFace(GetCullFace());
-    r->SetCulling(GetCulling());
-    r->SetRenderPrimitive(GetRenderPrimitive());
-    r->SetLineWidth(GetLineWidth());
+    return GetGameObject()->GetTransform()
+               ? GetGameObject()->GetTransform()->GetLocalToWorldMatrix()
+               : Matrix4::Identity();
 }
 
-void Renderer::ImportXML(const XMLNode &xml)
+void Renderer::Reflect()
 {
-    Component::ImportXML(xml);
-
-    if (xml.Contains("Visible"))
-    { SetVisible( xml.Get<bool>("Visible") ); }
-
-    if (xml.Contains("Material"))
-    { SetMaterial(Resources::Load<Material>(xml.Get<GUID>("Material")).Get()); }
-
-    if (xml.Contains("LineWidth"))
-    { SetLineWidth(xml.Get<float>("LineWidth")); }
-
-    if (xml.Contains("RenderWireframe"))
-    { SetRenderWireframe(xml.Get<bool>("RenderWireframe")); }
-}
-
-void Renderer::ExportXML(XMLNode *xmlInfo) const
-{
-    Component::ExportXML(xmlInfo);
-
-    xmlInfo->Set("Visible", IsVisible());
-
-    Material* sMat = GetSharedMaterial();
-    xmlInfo->Set("Material", sMat ? sMat->GetGUID() : GUID::Empty());
-
-    xmlInfo->Set("LineWidth", GetLineWidth());
-    xmlInfo->Set("RenderWireframe", IsRenderWireframe());
+    BANG_REFLECT_VAR_MEMBER(Renderer, "Visible", SetVisible, IsVisible);
+    BANG_REFLECT_VAR_MEMBER(Renderer, "Depth Mask", SetDepthMask, GetDepthMask);
+    BANG_REFLECT_VAR_ASSET(
+        "Material",
+        SetMaterial,
+        GetSharedMaterial,
+        Material,
+        BANG_REFLECT_HINT_EXTENSIONS(Extensions::GetMaterialExtension()) +
+            BANG_REFLECT_HINT_ZOOMABLE_PREVIEW(true));
+    BANG_REFLECT_VAR_MEMBER(Renderer,
+                            "Use Refl Probes",
+                            SetUseReflectionProbes,
+                            GetUseReflectionProbes);
+    BANG_REFLECT_VAR_MEMBER(
+        Renderer, "Casts Shadows", SetCastsShadows, GetCastsShadows);
+    BANG_REFLECT_VAR_MEMBER(
+        Renderer, "Receives Shadows", SetReceivesShadows, GetReceivesShadows);
 }

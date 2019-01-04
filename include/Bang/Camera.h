@@ -1,117 +1,148 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#include "Bang/Ray.h"
-#include "Bang/Set.h"
+#include <vector>
+
+#include "Bang/Array.tcc"
+#include "Bang/AssetHandle.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Color.h"
-#include "Bang/AARect.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEvents.h"
+#include "Bang/MetaNode.h"
+#include "Bang/Ray.h"
+#include "Bang/RenderFlags.h"
+#include "Bang/RenderPass.h"
+#include "Bang/String.h"
+#include "Bang/USet.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+template <class>
+class EventEmitter;
+class AABox;
+class GBuffer;
+class ICloneable;
+class IEventsDestroy;
+class Quad;
+class TextureCubeMap;
 
-FORWARD class Quad;
-FORWARD class GBuffer;
-FORWARD class Texture2D;
-FORWARD class ShaderProgram;
-FORWARD class SelectionFramebuffer;
+enum class CameraProjectionMode
+{
+    ORTHOGRAPHIC,
+    PERSPECTIVE
+};
 
-class Camera : public Component
+enum class CameraClearMode
+{
+    COLOR,
+    SKY_BOX
+};
+
+class Camera : public Component, public EventListener<IEventsDestroy>
 {
     COMPONENT(Camera)
 
 public:
-    enum ProjectionMode
-    {
-        Orthographic,
-        Perspective
-    };
-
     virtual void Bind() const;
     virtual void UnBind() const;
 
-    void BindGBuffer();
-    void BindSelectionFramebuffer();
-    void BindViewportForBlitting() const;
-    void BindViewportForRendering() const;
+    Ray FromViewportPointNDCToRay(const Vector2 &vpPointNDC) const;
+    Vector3 FromWorldPointToViewportPointNDC(
+        const Vector3 &worldPosition) const;
+    Vector3 FromViewportPointNDCToWorldPoint(
+        const Vector3 &vpPositionNDC) const;
+    Vector3 FromViewportPointNDCToWorldPoint(const Vector2 &vpPositionNDC,
+                                             float zFromCam) const;
 
-    Ray      FromViewportPointNDCToRay(const Vector2 &vpPointNDC) const;
-    Vector2i FromWindowPointToViewportPoint(const Vector2i &winPoint) const;
-    Vector2  FromWorldPointToViewportPointNDC(const Vector3 &worldPosition) const;
-    Vector3  FromViewportPointNDCToWorldPoint(const Vector3 &vpPositionNDC) const;
-    Vector3  FromViewportPointNDCToWorldPoint(const Vector2 &vpPositionNDC,
-                                              float zFromCam) const;
-
+    void SetReplacementGBuffer(GBuffer *gbuffer);
+    void SetRenderFlags(RenderFlags renderFlags);
+    void SetRenderSize(const Vector2i &renderSize);
+    void SetGammaCorrection(float gammaCorrection);
     void SetOrthoHeight(float orthoHeight);
-    void SetClearColor(const Color& color);
+    void SetClearColor(const Color &color);
     void SetFovDegrees(float fovDegrees);
     void SetZNear(float zNear);
     void SetZFar(float zFar);
-    void SetProjectionMode(ProjectionMode projMode);
-    void SetViewportRect(const AARect &viewportRectNDC);
+    void SetProjectionMode(CameraProjectionMode projMode);
     void AddRenderPass(RenderPass renderPass);
     void RemoveRenderPass(RenderPass renderPass);
-    void SetRenderSelectionBuffer(bool renderSelectionBuffer);
+    void SetSkyBoxTexture(TextureCubeMap *skyBoxTextureCM,
+                          bool createFilteredCubeMapsForIBL = true);
+    void SetClearMode(CameraClearMode clearMode);
+    void SetHDR(bool hdr);
 
-    const Color& GetClearColor() const;
+    bool GetHDR() const;
+    const Color &GetClearColor() const;
+    float GetAspectRatio() const;
     float GetOrthoWidth() const;
     float GetOrthoHeight() const;
     float GetFovDegrees() const;
     float GetZNear() const;
     float GetZFar() const;
+    CameraClearMode GetClearMode() const;
+    float GetGammaCorrection() const;
+    RenderFlags GetRenderFlags() const;
     bool MustRenderPass(RenderPass renderPass) const;
-    const Set<RenderPass>& GetRenderPassMask() const;
+    const USet<RenderPass, EnumClassHash> &GetRenderPassMask() const;
     Matrix4 GetViewMatrix() const;
-    bool GetRenderSelectionBuffer() const;
     Matrix4 GetProjectionMatrix() const;
-    ProjectionMode GetProjectionMode() const;
-    AARect GetViewportBoundingRect(const AABox &bbox);
-    AARect GetViewportRectInWindow() const;
-    AARect GetViewportRectNDCInWindow() const;
-    const AARect& GetViewportRectNDC() const;
+    bool IsPointInsideFrustum(const Vector3 &worldPoint) const;
+    CameraProjectionMode GetProjectionMode() const;
+    AARect GetViewportBoundingAARectNDC(const AABox &bbox) const;
     GBuffer *GetGBuffer() const;
-    SelectionFramebuffer *GetSelectionFramebuffer() const;
+    const Vector2i &GetRenderSize() const;
+    TextureCubeMap *GetSkyBoxTexture() const;
+    TextureCubeMap *GetSpecularSkyBoxTexture() const;
+    TextureCubeMap *GetDiffuseSkyBoxTexture() const;
 
-    Quad GetNearQuad()  const;
-    Quad GetFarQuad()   const;
-    Quad GetLeftQuad()  const;
-    Quad GetRightQuad() const;
-    Quad GetTopQuad()   const;
-    Quad GetBotQuad()   const;
+    Quad GetFrustumNearQuad() const;
+    Quad GetFrustumFarQuad() const;
+    Quad GetFrustumLeftQuad() const;
+    Quad GetFrustumRightQuad() const;
+    Quad GetFrustumTopQuad() const;
+    Quad GetFrustumBotQuad() const;
 
     static Camera *GetActive();
 
-    // Component
-    void OnRender(RenderPass rp) override;
-
     // ICloneable
-    virtual void CloneInto(ICloneable *clone) const override;
+    virtual void CloneInto(ICloneable *clone, bool cloneGUID) const override;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
+
+    // IEventsDestroy
+    virtual void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
 
 protected:
     Camera();
-    virtual ~Camera();
+    virtual ~Camera() override;
 
 private:
     GBuffer *m_gbuffer = nullptr;
-    SelectionFramebuffer *m_selectionFramebuffer = nullptr;
+    GBuffer *p_replacementGBuffer = nullptr;
 
-    Set<RenderPass> m_renderPassMask;
-    bool m_renderSelectionBuffer = false;
+    RenderFlags m_renderFlags = RenderFlag::DEFAULT;
+    USet<RenderPass, EnumClassHash> m_renderPassMask;
+    AH<TextureCubeMap> p_skyboxTextureCM;
+    AH<TextureCubeMap> p_skyboxSpecularTextureCM;
+    AH<TextureCubeMap> p_skyboxDiffuseTextureCM;
 
+    CameraProjectionMode m_projMode = CameraProjectionMode::PERSPECTIVE;
+    CameraClearMode m_clearMode = CameraClearMode::COLOR;
     Color m_clearColor = Color(Color(0.3f), 1);
-    float m_orthoHeight  = 25.0f;
+    float m_orthoHeight = 25.0f;
     float m_fovDegrees = 60.0f;
     float m_zNear = 0.1f;
     float m_zFar = 100.0f;
-    AARect m_viewportRectNDC = AARect::NDCRect;
-    ProjectionMode m_projMode = ProjectionMode::Perspective;
+    float m_gammaCorrection = 1.0f / 2.2f;
 
     friend class Scene;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // CAMERA_H
+#endif  // CAMERA_H

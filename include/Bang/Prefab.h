@@ -2,38 +2,42 @@
 #define BANGFAB_H
 
 #include "Bang/Asset.h"
+#include "Bang/BangDefines.h"
+#include "Bang/MetaNode.h"
 #include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class GameObject;
+class Path;
 
 class Prefab : public Asset
 {
     ASSET(Prefab)
 
 public:
-    GameObject* Instantiate() const;
-    GameObject* InstantiateRaw() const;
+    GameObject *Instantiate() const;
+    GameObject *InstantiateRaw() const;
 
     void SetGameObject(GameObject *go);
 
-    const String& GetInfoContent() const;
+    const String &GetMetaContent() const;
 
-    // Resource
-    void Import(const Path& prefabFilepath) override;
+    // Asset
+    void Import(const Path &prefabFilepath) override;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
 
 private:
-    String m_gameObjectXMLInfoContent = "";
+    String m_gameObjectMetaInfoContent = "";
 
     Prefab();
     Prefab(GameObject *go);
-    Prefab(const String &gameObjectXMLInfoContent);
-    virtual ~Prefab();
+    Prefab(const String &gameObjectMetaInfoContent);
+    virtual ~Prefab() override;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // BANGFAB_H
+#endif  // BANGFAB_H

@@ -1,14 +1,20 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include "Bang/List.h"
+#include <functional>
+
+#include "Bang/Array.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/String.h"
+#include "Bang/Time.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class Timer : public Component
 {
-    COMPONENT(Timer)
+    COMPONENT_WITHOUT_CLASS_ID(Timer)
 
 public:
     void Run();
@@ -18,27 +24,25 @@ public:
     void OnUpdate() override;
 
     void AddCallback(std::function<void()> callback);
-    void SetInterval(float intervalSecs);
+    void SetInterval(Time interval);
 
     bool IsRunning() const;
-    float GetInterval() const;
+    Time GetInterval() const;
 
 protected:
-	Timer();
-	virtual ~Timer();
+    Timer();
+    virtual ~Timer() override;
 
 private:
     bool m_running = true;
-    float m_intervalSecs = 1.0f;
-    uint64_t m_lastTickTimestampSecs = 0;
+    Time m_interval;
+    Time m_lastTickTime;
 
-    List<std::function<void()>> m_callbacksList;
+    Array<std::function<void()>> m_callbacks;
 
     void Tick();
     void ResetTimestamp();
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // TIMER_H
-
+#endif  // TIMER_H

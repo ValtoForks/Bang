@@ -1,62 +1,53 @@
-#ifndef UNIFORM_BUFFER_TCC
-#define UNIFORM_BUFFER_TCC
+#pragma once
 
 #include "Bang/UniformBuffer.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
-template<class BufferStruct>
+template <class BufferStruct>
 UniformBuffer<BufferStruct>::UniformBuffer()
 {
     GL::GenBuffers(1, &m_idGL);
 
     Bind();
-    GL::BufferData(GL::BindTarget::UniformBuffer,
-                   sizeof(BufferStruct), &m_data,
-                   GL::UsageHint::DynamicDraw);
+    GL::BufferData(GL::BindTarget::UNIFORM_BUFFER,
+                   sizeof(BufferStruct),
+                   nullptr,
+                   GL::UsageHint::STATIC_DRAW);
     UnBind();
 }
 
-template<class BufferStruct>
+template <class BufferStruct>
 UniformBuffer<BufferStruct>::~UniformBuffer()
 {
     GL::DeleteBuffers(1, &m_idGL);
 }
 
-template<class BufferStruct>
+template <class BufferStruct>
 void UniformBuffer<BufferStruct>::Set(const BufferStruct &data)
 {
-    m_data = data;
-    UpdateBuffer();
+    SetSubData(data, 0);
 }
 
-template<class BufferStruct>
-BufferStruct* const UniformBuffer<BufferStruct>::GetData()
-{
-    return &m_data;
-}
-template<class BufferStruct>
-const BufferStruct* const UniformBuffer<BufferStruct>::GetData() const
-{
-    return &m_data;
-}
-
-template<class BufferStruct>
-void UniformBuffer<BufferStruct>::UpdateBuffer() const
+template <class BufferStruct>
+void UniformBuffer<BufferStruct>::SetSubData(const void *data,
+                                             GLuint offset,
+                                             GLuint size)
 {
     Bind();
-
-    GLvoid* p = GL::MapBuffer( GetGLBindTarget(), GL::WriteOnly );
-    memcpy(p, GetData(), sizeof(BufferStruct));
-    GL::UnMapBuffer( GetGLBindTarget() );
-
+    GL::BufferSubData(GetGLBindTarget(), offset, size, data);
     UnBind();
 }
 
-template<class BufferStruct>
-GL::BindTarget UniformBuffer<BufferStruct>::GetGLBindTarget() const
+template <class BufferStruct>
+template <class T>
+void UniformBuffer<BufferStruct>::SetSubData(const T &data, GLuint offset)
 {
-    return GL::BindTarget::UniformBuffer;
+    SetSubData(&data, offset, sizeof(data));
 }
 
-#endif // UNIFORM_BUFFER_TCC
+template <class BufferStruct>
+GL::BindTarget UniformBuffer<BufferStruct>::GetGLBindTarget() const
+{
+    return GL::BindTarget::UNIFORM_BUFFER;
+}

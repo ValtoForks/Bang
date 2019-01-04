@@ -1,14 +1,16 @@
 #include "Bang/Behaviour.h"
 
-#include "Bang/File.h"
-#include "Bang/Time.h"
-#include "Bang/Extensions.h"
-#include "Bang/Application.h"
+#include "Bang/BehaviourManager.h"
+#include "Bang/ClassDB.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/IEventsGameObjectPhysics.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 Behaviour::Behaviour()
 {
+    SET_INSTANCE_CLASS_ID(Behaviour)
+    BehaviourManager::GetActive()->RegisterBehaviour(this);
 }
 
 Behaviour::~Behaviour()

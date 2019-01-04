@@ -2,26 +2,30 @@
 #define ALAUDIOSOURCE_H
 
 #include <AL/al.h>
-#include <AL/alc.h>
+#include <vector>
 
+#include "Bang/Array.tcc"
 #include "Bang/AudioParams.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/IDestroyListener.h"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventListener.tcc"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class IEventsDestroy;
 
-class ALAudioSource : public virtual EventEmitter<IDestroyListener>
+class ALAudioSource : public virtual EventEmitter<IEventsDestroy>
 {
 public:
     enum State
     {
-        Playing = AL_PLAYING,
-        Paused  = AL_PAUSED,
-        Stopped = AL_STOPPED
+        PLAYING = AL_PLAYING,
+        PAUSED = AL_PAUSED,
+        STOPPED = AL_STOPPED
     };
 
     ALAudioSource();
-    virtual ~ALAudioSource();
+    virtual ~ALAudioSource() override;
 
     void Play();
     void Pause();
@@ -31,23 +35,25 @@ public:
     void SetPitch(float pitch);
     void SetRange(float range);
     void SetLooping(bool looping);
-    void SetPosition(const Vector3& position);
+    void SetPosition(const Vector3 &position);
     void SetParams(const AudioParams &audioParams);
     void SetALBufferId(ALuint bufferId);
+    void UpdateALProperties() const;
 
     bool IsPlaying() const;
     bool IsPaused() const;
     bool IsStopped() const;
     State GetState() const;
     float GetVolume() const;
-    float GetPitch()  const;
-    float GetRange()  const;
+    float GetPitch() const;
+    float GetRange() const;
     ALuint GetALSourceId() const;
-    const Vector3& GetPosition() const;
-    const AudioParams& GetParams();
-    bool GetLooping()  const;
+    const Vector3 &GetPosition() const;
+    const AudioParams &GetParams();
+    bool GetLooping() const;
 
 private:
+    uint m_bufferId = 0;
     ALuint m_alSourceId = 0;
     AudioParams m_audioParams;
     bool m_autoDelete = false;
@@ -55,7 +61,6 @@ private:
     friend class AudioManager;
     friend class AudioPlayerRunnable;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // ALAUDIOSOURCE_H
+#endif  // ALAUDIOSOURCE_H

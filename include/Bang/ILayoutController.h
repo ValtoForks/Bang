@@ -1,34 +1,46 @@
 #ifndef ILAYOUTCONTROLLER_H
 #define ILAYOUTCONTROLLER_H
 
-#include "Bang/Axis.h"
-#include "Bang/IInvalidatable.h"
-#include "Bang/IChildrenListener.h"
-#include "Bang/ITransformListener.h"
+#include <vector>
 
-NAMESPACE_BANG_BEGIN
+#include "Bang/Array.tcc"
+#include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEventsChildren.h"
+#include "Bang/IEventsTransform.h"
+#include "Bang/IInvalidatable.h"
+
+namespace Bang
+{
+class GameObject;
+class IEventsChildren;
+class IEventsTransform;
 
 class ILayoutController : public IInvalidatable<ILayoutController>,
-                          public IChildrenListener,
-                          public ITransformListener
+                          public EventListener<IEventsChildren>,
+                          public EventListener<IEventsTransform>
 {
 public:
+    virtual bool IsSelfController() const;
+
     // IInvalidatable
     virtual void Invalidate() override;
     virtual void OnInvalidated() override;
 
-    // IChildrenListener
+    // IEventsChildren
     void OnChildAdded(GameObject *addedChild, GameObject *parent) override;
     void OnChildRemoved(GameObject *removedChild, GameObject *parent) override;
     void OnParentChanged(GameObject *oldParent, GameObject *newParent) override;
 
-    // ITransformListener
+    // IEventsTransform
     virtual void OnTransformChanged() override;
     virtual void OnParentTransformChanged() override;
 
 protected:
     ILayoutController();
-    virtual ~ILayoutController();
+    virtual ~ILayoutController() override;
 
 private:
     virtual void ApplyLayout(Axis axis) = 0;
@@ -36,7 +48,6 @@ private:
 
     friend class UILayoutManager;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // ILAYOUTCONTROLLER_H
+#endif  // ILAYOUTCONTROLLER_H

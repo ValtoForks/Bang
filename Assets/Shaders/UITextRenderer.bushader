@@ -1,0 +1,8 @@
+#properties
+#render_pass canvas
+
+#vertex
+#include "UITextRenderer.vert"
+
+#fragment
+#include "UITextRenderer.frag"

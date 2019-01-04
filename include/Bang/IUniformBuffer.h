@@ -1,14 +1,18 @@
 #ifndef IUNIFORMBUFFER_H
 #define IUNIFORMBUFFER_H
 
+#include <GL/glew.h>
+
+#include "Bang/BangDefines.h"
+#include "Bang/GL.h"
 #include "Bang/GLObject.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class IUniformBuffer : public GLObject
 {
 public:
-    virtual ~IUniformBuffer();
+    virtual ~IUniformBuffer() override;
 
     void SetBindingPoint(int bindingPoint);
     GLuint GetBindingPoint() const;
@@ -17,12 +21,11 @@ public:
 
 protected:
     IUniformBuffer();
+    mutable void *m_mappedMemory = nullptr;
 
 private:
     GLuint m_bindingPoint = -1;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // IUNIFORMBUFFER_H
-
+#endif  // IUNIFORMBUFFER_H

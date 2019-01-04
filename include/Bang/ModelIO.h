@@ -1,83 +1,82 @@
 #ifndef MODELIO_H
 #define MODELIO_H
 
-#include "Bang/Mesh.h"
-#include "Bang/Tree.h"
-#include "Bang/Array.h"
-#include "Bang/Matrix4.h"
-#include "Bang/ResourceHandle.h"
+#include <functional>
 
-FORWARD class aiMesh;
-FORWARD class aiNode;
-FORWARD class aiScene;
-FORWARD class aiMaterial;
-FORWARD namespace Assimp
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/AssetHandle.h"
+#include "Bang/BangDefines.h"
+#include "Bang/Map.h"
+#include "Bang/Map.tcc"
+#include "Bang/Matrix4.tcc"
+#include "Bang/Mesh.h"
+#include "Bang/String.h"
+
+struct aiMaterial;
+struct aiMesh;
+struct aiNode;
+struct aiScene;
+
+namespace Assimp
 {
-    FORWARD class Importer;
+class Importer;
 }
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Scene;
-FORWARD class Model;
-FORWARD class Texture2D;
+namespace Bang
+{
+template <class>
+class Tree;
+class Animation;
+class GameObject;
+class Material;
+class Model;
+class Path;
 
 struct ModelIONode
 {
     String name;
-    Matrix4 transformation;
+    Matrix4 localToParent;
 
-    Array<uint> meshIndices;
-    Array<uint> meshMaterialIndices;
+    Array<uint> meshIndices;          // Which meshes this node has
+    Array<uint> meshMaterialIndices;  // Which material does each mesh have
 };
 
 struct ModelIOScene
 {
-    Array< RH<Mesh> > meshes;
-    Array< String > meshesNames;
+    Array<AH<Mesh>> meshes;
+    Array<String> meshesNames;
 
-    Array< RH<Material> > materials;
-    Array< String > materialsNames;
+    Array<AH<Material>> materials;
+    Array<String> materialsNames;
 
+    Array<AH<Animation>> animations;
+    Array<String> animationsNames;
+
+    Map<String, Mesh::Bone> allBones;
+
+    String rootGameObjectName = "";
     Tree<ModelIONode> *modelTree = nullptr;
 
-    ~ModelIOScene() { if (modelTree) { delete modelTree; } }
+    ~ModelIOScene();
+    void Clear();
 };
 
 class ModelIO
 {
 public:
-    static int GetModelNumTriangles(const Path& modelFilepath);
-
-    static bool ImportModel(const Path& modelFilepath,
-                            const GUID &modelGUID,
+    static bool ImportModel(const Path &modelFilepath,
+                            Model *model,
                             ModelIOScene *modelScene);
 
-    static bool ImportFirstFoundMeshRaw(
-                     const Path& modelFilepath,
-                     Array<Mesh::VertexId> *vertexIndices,
-                     Array<Vector3> *vertexPositions,
-                     Array<Vector3> *vertexNormals,
-                     Array<Vector2> *vertexUvs);
-
-    static void ImportMesh(aiMesh *aMesh,
-                           const GUID &parentModelGUID,
-                           const GUID::GUIDType &innerMeshGUID,
-                           RH<Mesh> *outMesh,
-                           String *outMeshName);
-    static void ImportMaterial(aiMaterial *aMaterial,
-                               const Path& modelDirectory,
-                               const GUID &parentModelGUID,
-                               const GUID::GUIDType &innerMaterialGUID,
-                               RH<Material> *outMaterial,
-                               String *outMaterialName);
-
-    static void ImportMeshRaw(
-                     aiMesh *aMesh,
-                     Array<Mesh::VertexId> *vertexIndices,
-                     Array<Vector3> *vertexPositionsPool,
-                     Array<Vector3> *vertexNormalsPool,
-                     Array<Vector2> *vertexUvsPool);
+    static void ImportMeshRaw(aiMesh *aMesh,
+                              Array<Mesh::VertexId> *vertexIndices,
+                              Array<Vector3> *vertexPositionsPool,
+                              Array<Vector3> *vertexNormalsPool,
+                              Array<Vector2> *vertexUvsPool,
+                              Array<Vector3> *vertexTangentsPool,
+                              Map<String, Mesh::Bone> *bones,
+                              Map<String, uint> *bonesIndices);
 
     static void ExportModel(const GameObject *gameObject,
                             const Path &meshExportPath);
@@ -86,14 +85,23 @@ public:
 
 private:
     static String GetExtensionIdFromExtension(const String &extension);
-    static aiNode* GameObjectToAiNode(const GameObject *gameObject,
-                                      const Array<Mesh*> &sceneMeshes);
-    static aiMesh* MeshToAiMesh(const Mesh *mesh);
-    static aiMaterial* MaterialToAiMaterial(const Material *material);
+    static aiNode *GameObjectToAiNode(const GameObject *gameObject,
+                                      const Array<Mesh *> &sceneMeshes);
+    static aiMesh *MeshToAiMesh(const Mesh *mesh);
+    static aiMaterial *MaterialToAiMaterial(const Material *material);
     static const aiScene *ImportScene(Assimp::Importer *importer,
-                                      const Path& modelFilepath);
+                                      const Path &modelFilepath);
+
+    static void ImportEmbeddedMesh(aiMesh *aMesh,
+                                   Model *model,
+                                   AH<Mesh> *outMesh,
+                                   String *outMeshName);
+    static void ImportEmbeddedMaterial(aiMaterial *aMaterial,
+                                       const Path &modelDirectory,
+                                       Model *model,
+                                       AH<Material> *outMaterial,
+                                       String *outMaterialName);
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // MODELIO_H
+#endif  // MODELIO_H

@@ -1,9 +1,14 @@
 #ifndef GRAPHICPIPELINEDEBUGGER_H
 #define GRAPHICPIPELINEDEBUGGER_H
 
-#include "Bang/GBuffer.h"
+#include "Bang/BangDefines.h"
+#include "Bang/GL.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class GBuffer;
+class Path;
 
 class GEngineDebugger
 {
@@ -19,7 +24,6 @@ public:
 private:
     GEngineDebugger();
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // GRAPHICPIPELINEDEBUGGER_H
+#endif  // GRAPHICPIPELINEDEBUGGER_H

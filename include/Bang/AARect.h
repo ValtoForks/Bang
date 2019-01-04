@@ -5,31 +5,31 @@
 #include "Bang/Vector2.h"
 #include "Bang/Vector4.h"
 
-NAMESPACE_BANG_BEGIN
-
-template<class T>
+namespace Bang
+{
+template <class T>
 class AARectG
 {
 private:
-    Vector2G<T> m_min = Vector2G<T>::Zero;
-    Vector2G<T> m_max = Vector2G<T>::Zero;
+    Vector2G<T> m_min = Vector2G<T>::Infinity();
+    Vector2G<T> m_max = Vector2G<T>::NInfinity();
 
 public:
-    const static AARectG<T> NDCRect;
-    const static AARectG<T> Zero;
+    const static AARectG<T> &NDCRect();
+    const static AARectG<T> &Zero();
 
     AARectG()
     {
     }
 
-    template<class OtherT>
+    template <class OtherT>
     explicit AARectG(const AARectG<OtherT> &r)
     {
         m_min = Vector2G<T>(r.GetMin());
         m_max = Vector2G<T>(r.GetMax());
     }
 
-    template<class OtherT>
+    template <class OtherT>
     explicit AARectG(const RectG<OtherT> &r)
     {
         Vector2G<OtherT> p0, p1, opposedP0;
@@ -39,8 +39,8 @@ public:
 
     explicit AARectG(T minx, T miny, T maxx, T maxy)
     {
-        m_min = Vector2G<T>( Math::Min(minx, maxx), Math::Min(miny, maxy) );
-        m_max = Vector2G<T>( Math::Max(minx, maxx), Math::Max(miny, maxy) );
+        m_min = Vector2G<T>(Math::Min(minx, maxx), Math::Min(miny, maxy));
+        m_max = Vector2G<T>(Math::Max(minx, maxx), Math::Max(miny, maxy));
     }
 
     explicit AARectG(const Vector2G<T> &p1, const Vector2G<T> &p2)
@@ -49,8 +49,26 @@ public:
         m_max = Vector2G<T>::Max(p1, p2);
     }
 
-    void SetMin(const Vector2G<T> &minv) { m_min = minv; }
-    void SetMax(const Vector2G<T> &maxv) { m_max = maxv; }
+    void SetMin(const Vector2G<T> &minv)
+    {
+        m_min = minv;
+    }
+
+    void SetMax(const Vector2G<T> &maxv)
+    {
+        m_max = maxv;
+    }
+
+    bool IsValid() const
+    {
+        return GetMin() < GetMax();
+    }
+
+    void AddPoint(const Vector2G<T> &point)
+    {
+        SetMin(Vector2G<T>::Min(GetMin(), point));
+        SetMax(Vector2G<T>::Max(GetMax(), point));
+    }
 
     Vector2G<T> GetMinXMaxY() const
     {
@@ -72,12 +90,12 @@ public:
         return Vector2G<T>(GetMax().x, GetMin().y);
     }
 
-    const Vector2G<T>& GetMin() const
+    const Vector2G<T> &GetMin() const
     {
         return m_min;
     }
 
-    const Vector2G<T>& GetMax() const
+    const Vector2G<T> &GetMax() const
     {
         return m_max;
     }
@@ -104,13 +122,13 @@ public:
 
     Vector2G<T> GetCenter() const
     {
-        return (GetMin() + GetMax()) / Cast<T>(2);
+        return (GetMin() + GetMax()) / SCAST<T>(2);
     }
 
     bool Contains(const Vector2G<T> &p) const
     {
-        return p.x >= GetMin().x && p.x < GetMax().x &&
-               p.y >= GetMin().y && p.y < GetMax().y;
+        return p.x >= GetMin().x && p.x < GetMax().x && p.y >= GetMin().y &&
+               p.y < GetMax().y;
     }
 
     static AARectG<T> Union(const AARectG<T> &r1, const AARectG<T> &r2)
@@ -124,10 +142,15 @@ public:
     template <class Iterator>
     static AARectG<T> Union(Iterator begin, Iterator end)
     {
-        if (begin == end) { return AARectG<T>::Zero; }
+        if (begin == end)
+        {
+            return AARectG<T>::Zero();
+        }
         AARectG<T> unionRect = *begin;
         for (auto it = begin; it != end; ++it)
-        { unionRect = AARectG<T>::Union(unionRect, *it); }
+        {
+            unionRect = AARectG<T>::Union(unionRect, *it);
+        }
         return unionRect;
     }
 
@@ -140,7 +163,7 @@ public:
 
         if (minx > maxx || miny > maxy)
         {
-            return AARectG<T>::Zero;
+            return AARectG<T>::Zero();
         }
 
         return AARectG<T>(minx, miny, maxx, maxy);
@@ -149,17 +172,25 @@ public:
     template <class Iterator>
     static AARectG<T> Intersection(Iterator begin, Iterator end)
     {
-        if (begin == end) { return AARectG<T>::Zero; }
+        if (begin == end)
+        {
+            return AARectG<T>::Zero();
+        }
         AARectG<T> intersectionRect = *begin;
         for (auto it = begin; it != end; ++it)
-        { intersectionRect = AARectG<T>::Intersection(intersectionRect, *it); }
+        {
+            intersectionRect = AARectG<T>::Intersection(intersectionRect, *it);
+        }
         return intersectionRect;
     }
 
     template <class Iterator>
     static AARectG<T> GetBoundingRectFromPositions(Iterator begin, Iterator end)
     {
-        if (begin == end) { return AARectG<T>::Zero; }
+        if (begin == end)
+        {
+            return AARectG<T>::Zero();
+        }
 
         Vector2G<T> minv = *begin, maxv = *begin;
         for (auto it = begin; it != end; ++it)
@@ -172,189 +203,230 @@ public:
     }
 
     template <class OtherT = T>
+    Vector2 GetClosestPointInAARect(const Vector2 &point) const
+    {
+        Vector2 closestPoint;
+        closestPoint.x = Math::Clamp(point.x, GetMin().x, GetMax().x);
+        closestPoint.y = Math::Clamp(point.y, GetMin().y, GetMax().y);
+        return closestPoint;
+    }
+
+    template <class OtherT = T>
     RectG<OtherT> ToRect() const
     {
         return RectG<OtherT>(Vector2G<OtherT>(GetCenter()),
-                             Vector2G<OtherT>::Right,
-                             SCAST<OtherT>(GetWidth()  * 0.5),
+                             Vector2G<OtherT>::Right(),
+                             SCAST<OtherT>(GetWidth() * 0.5),
                              SCAST<OtherT>(GetHeight() * 0.5));
     }
 
-    template<class S> friend bool operator==(const AARectG<S> &r1, const AARectG<S> &r2);
-    template<class S> friend bool operator!=(const AARectG<S> &r1, const AARectG<S> &r2);
-    template<class S> friend void operator*=(AARectG<S> &r, S a);
-    template<class S> friend void operator/=(AARectG<S> &r, S a);
-    template<class S> friend void operator*=(AARectG<S> &r, const Vector2G<S> &v);
-    template<class S> friend void operator/=(AARectG<S> &r, const Vector2G<S> &v);
-    template<class S> friend AARectG<S> operator*(const Matrix4G<S> &m, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator/(S a, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator/(const AARectG<S> &r, S a);
-    template<class S> friend AARectG<S> operator*(S a, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator*(const AARectG<S> &r, S a);
-    template<class S> friend AARectG<S> operator*(const Vector2G<S> &v, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator*(const AARectG<S> &r, const Vector2G<S> &v);
-    template<class S> friend AARectG<S> operator/(const Vector2G<S> &v, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator/(const AARectG<S> &r, const Vector2G<S> &v);
-    template<class S> friend AARectG<S> operator-(S a, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator-(const AARectG<S> &r, S a);
-    template<class S> friend AARectG<S> operator-(const Vector2G<S> &v, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator-(const AARectG<S> &r, const Vector2G<S> &v);
-    template<class S> friend void operator-=(AARectG<S> &r, const Vector2G<S> &v);
-    template<class S> friend AARectG<S> operator+(S a, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator+(const AARectG<S> &r, S a);
-    template<class S> friend AARectG<S> operator+(const Vector2G<S> &v, const AARectG<S> &r);
-    template<class S> friend AARectG<S> operator+(const AARectG<S> &r, const Vector2G<S> &v);
-    template<class S> friend void operator+=(AARectG<S> &r, const Vector2G<S> &v);
+    template <class S>
+    friend bool operator==(const AARectG<S> &r1, const AARectG<S> &r2);
+    template <class S>
+    friend bool operator!=(const AARectG<S> &r1, const AARectG<S> &r2);
+    template <class S>
+    friend void operator*=(AARectG<S> &r, S a);
+    template <class S>
+    friend void operator/=(AARectG<S> &r, S a);
+    template <class S>
+    friend void operator*=(AARectG<S> &r, const Vector2G<S> &v);
+    template <class S>
+    friend void operator/=(AARectG<S> &r, const Vector2G<S> &v);
+    template <class S>
+    friend AARectG<S> operator*(const Matrix4G<S> &m, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator/(S a, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator/(const AARectG<S> &r, S a);
+    template <class S>
+    friend AARectG<S> operator*(S a, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator*(const AARectG<S> &r, S a);
+    template <class S>
+    friend AARectG<S> operator*(const Vector2G<S> &v, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator*(const AARectG<S> &r, const Vector2G<S> &v);
+    template <class S>
+    friend AARectG<S> operator/(const Vector2G<S> &v, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator/(const AARectG<S> &r, const Vector2G<S> &v);
+    template <class S>
+    friend AARectG<S> operator-(S a, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator-(const AARectG<S> &r, S a);
+    template <class S>
+    friend AARectG<S> operator-(const Vector2G<S> &v, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator-(const AARectG<S> &r, const Vector2G<S> &v);
+    template <class S>
+    friend void operator-=(AARectG<S> &r, const Vector2G<S> &v);
+    template <class S>
+    friend AARectG<S> operator+(S a, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator+(const AARectG<S> &r, S a);
+    template <class S>
+    friend AARectG<S> operator+(const Vector2G<S> &v, const AARectG<S> &r);
+    template <class S>
+    friend AARectG<S> operator+(const AARectG<S> &r, const Vector2G<S> &v);
+    template <class S>
+    friend void operator+=(AARectG<S> &r, const Vector2G<S> &v);
 };
 
-template<class T>
-const AARectG<T> AARectG<T>::NDCRect = AARectG<T>(Vector2G<T>(-1),
-                                               Vector2G<T>(1));
-
-template<class T>
-const AARectG<T> AARectG<T>::Zero = AARectG<T>(0, 0, 0, 0);
-
-template<class T>
-bool operator==(const AARectG<T> &r1, const AARectG<T> &r2)
+template <class T>
+const AARectG<T> &AARectG<T>::NDCRect()
 {
-    return r1.GetMin() == r2.GetMin() &&
-           r1.GetMax() == r2.GetMax();
+    static const AARectG<T> r =
+        AARectG<T>(Vector2G<T>(SCAST<T>(-1)), Vector2G<T>(SCAST<T>(1)));
+    return r;
 }
 
+template <class T>
+const AARectG<T> &AARectG<T>::Zero()
+{
+    static const AARectG<T> r =
+        AARectG<T>(SCAST<T>(0), SCAST<T>(0), SCAST<T>(0), SCAST<T>(0));
+    return r;
+}
 
-template<class T>
+template <class T>
+bool operator==(const AARectG<T> &r1, const AARectG<T> &r2)
+{
+    return r1.GetMin() == r2.GetMin() && r1.GetMax() == r2.GetMax();
+}
+
+template <class T>
 bool operator!=(const AARectG<T> &r1, const AARectG<T> &r2)
 {
     return !(r1 == r2);
 }
 
-template<class T>
+template <class T>
 void operator*=(AARectG<T> &r, T a)
 {
     r.m_min *= a;
     r.m_max *= a;
 }
 
-template<class T>
+template <class T>
 void operator/=(AARectG<T> &r, T a)
 {
     r.m_min /= a;
     r.m_max /= a;
 }
 
-template<class T>
+template <class T>
 void operator*=(AARectG<T> &r, const Vector2G<T> &v)
 {
     r.m_min *= v;
     r.m_max *= v;
 }
 
-template<class T>
+template <class T>
 void operator/=(AARectG<T> &r, const Vector2G<T> &v)
 {
     r.m_min /= v;
     r.m_max /= v;
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator*(const Matrix4G<T> &m, const AARectG<T> &r)
 {
-    return AARectG<T>( (m * Vector4G<T>(r.GetMin(), 0, 1) ).xy(),
-                       (m * Vector4G<T>(r.GetMax(), 0, 1) ).xy() );
+    return AARectG<T>((m * Vector4G<T>(r.GetMin(), 0, 1)).xy(),
+                      (m * Vector4G<T>(r.GetMax(), 0, 1)).xy());
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator/(T a, const AARectG<T> &r)
 {
     return AARectG<T>(a / r.GetMin(), a / r.GetMax());
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator/(const AARectG<T> &r, T a)
 {
     return AARectG<T>(r.GetMin() / a, r.GetMax() / a);
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator*(T a, const AARectG<T> &r)
 {
     return AARectG<T>(a * r.GetMin(), a * r.GetMax());
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator*(const AARectG<T> &r, T a)
 {
     return a * r;
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator*(const Vector2G<T> &v, const AARectG<T> &r)
 {
     return AARectG<T>(v * r.GetMin(), v * r.GetMax());
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator*(const AARectG<T> &r, const Vector2G<T> &v)
 {
     return v * r;
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator/(const Vector2G<T> &v, const AARectG<T> &r)
 {
     return AARectG<T>(v / r.GetMin(), v / v.GetMax());
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator/(const AARectG<T> &r, const Vector2G<T> &v)
 {
     return AARectG<T>(r.GetMin() / v, r.GetMax() / v);
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator-(T a, const AARectG<T> &r)
 {
     return Vector2G<T>(a) - r;
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator-(const AARectG<T> &r, T a)
 {
     return r - Vector2G<T>(a);
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator-(const Vector2G<T> &v, const AARectG<T> &r)
 {
     return AARectG<T>(v - r.GetMin(), v - r.GetMax());
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator-(const AARectG<T> &r, const Vector2G<T> &v)
 {
     return AARectG<T>(r.GetMin() - v, r.GetMax() - v);
 }
 
-template<class T>
+template <class T>
 void operator-=(AARectG<T> &r, const Vector2G<T> &v)
 {
     r.m_min = r.m_min - v;
     r.m_max = r.m_max - v;
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator+(T a, const AARectG<T> &r)
 {
     return Vector2G<T>(a) + r;
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator+(const AARectG<T> &r, T a)
 {
     return Vector2G<T>(a) + r;
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator+(const Vector2G<T> &v, const AARectG<T> &r)
 {
     AARectG<T> res = r;
@@ -362,19 +434,18 @@ AARectG<T> operator+(const Vector2G<T> &v, const AARectG<T> &r)
     return res;
 }
 
-template<class T>
+template <class T>
 AARectG<T> operator+(const AARectG<T> &r, const Vector2G<T> &v)
 {
     return v + r;
 }
 
-template<class T>
+template <class T>
 void operator+=(AARectG<T> &r, const Vector2G<T> &v)
 {
     r.m_min += v;
     r.m_max += v;
 }
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // AARECT_H
+#endif  // AARECT_H

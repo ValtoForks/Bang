@@ -1,64 +1,69 @@
 ﻿#ifndef SCENE_H
 #define SCENE_H
 
-#include <queue>
-
-#include "Bang/List.h"
+#include "Bang/BangDefines.h"
 #include "Bang/GameObject.h"
-#include "Bang/IDestroyListener.h"
+#include "Bang/MetaNode.h"
+#include "Bang/RenderPass.h"
+#include "Bang/String.h"
+#include "Bang/Time.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+template <class>
+class EventEmitter;
+class Camera;
+class DebugRenderer;
+class ICloneable;
+class IEventsDestroy;
 
-FORWARD class Camera;
-FORWARD class Gizmos;
-FORWARD class DebugRenderer;
-
-class Scene : public GameObject,
-              public IDestroyListener
+class Scene : public GameObject, public EventListener<IEventsDestroy>
 {
     GAMEOBJECT(Scene);
 
 public:
-    virtual void OnPreStart() override;
+    Scene();
+
+    virtual void Start() override;
     virtual void Update() override;
     virtual void Render(RenderPass rp, bool renderChildren = true) override;
     virtual void OnResize(int newWidth, int newHeight);
 
     void SetCamera(Camera *cam);
-    void SetFirstFoundCamera();
 
-    virtual Camera *GetCamera() const;
+    Time GetDeltaTime() const;
+    Camera *GetCamera() const;
 
     void InvalidateCanvas();
 
-    // IDestroyListener
-    void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    // ICloneable
+    virtual void CloneInto(ICloneable *clone, bool cloneGUID) const override;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
+
+    // IEventsDestroy
+    void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
 
 protected:
-    Camera *p_camera = nullptr;
-    Gizmos *m_gizmos = nullptr;
-    DebugRenderer *p_debugRenderer = nullptr;
+    virtual ~Scene() override;
 
-    Scene();
-    virtual ~Scene();
-
-    Gizmos *GetGizmos() const;
     DebugRenderer *GetDebugRenderer() const;
 
 private:
+    Time m_deltaTime;
+    Time m_lastUpdateTime;
 
-    friend class Gizmos;
+    Camera *p_camera = nullptr;
+    DebugRenderer *p_debugRenderer = nullptr;
+
     friend class Window;
     friend class GEngine;
     friend class Application;
     friend class SceneManager;
     friend class DebugRenderer;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // SCENE_H
+#endif  // SCENE_H

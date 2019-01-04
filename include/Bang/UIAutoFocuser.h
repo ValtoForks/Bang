@@ -1,11 +1,14 @@
 #ifndef UIAUTOFOCUSER_H
 #define UIAUTOFOCUSER_H
 
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class IFocusable;
+namespace Bang
+{
+class UIFocusable;
 
 class UIAutoFocuser : public Component
 {
@@ -14,18 +17,18 @@ class UIAutoFocuser : public Component
 public:
     // Component
     void OnStart() override;
+    void OnUpdate() override;
 
-    void SetFocusableToAutoFocus(IFocusable* focusable);
-    IFocusable* GetFocusableToAutoFocus() const;
+    void SetFocusableToAutoFocus(UIFocusable *focusable);
+    UIFocusable *GetFocusableToAutoFocus() const;
 
 private:
-    IFocusable* p_focusableToAutoFocus = nullptr;
+    int m_frames = 0;
+    UIFocusable *p_focusableToAutoFocus = nullptr;
 
-    UIAutoFocuser() = default;
+    UIAutoFocuser();
     virtual ~UIAutoFocuser() = default;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIAUTOFOCUSER_H
-
+#endif  // UIAUTOFOCUSER_H

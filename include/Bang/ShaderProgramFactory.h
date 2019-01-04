@@ -1,33 +1,63 @@
 #ifndef SHADERPROGRAMFACTORY_H
 #define SHADERPROGRAMFACTORY_H
 
-#include "Bang/ShaderProgram.h"
-#include "Bang/ResourceHandle.h"
+#include <functional>
+#include <tuple>
 
-NAMESPACE_BANG_BEGIN
+#include "Bang/AssetHandle.h"
+#include "Bang/BangDefines.h"
+#include "Bang/Map.h"
+#include "Bang/Path.h"
+#include "Bang/RenderPass.h"
+
+namespace Bang
+{
+class ShaderProgram;
 
 class ShaderProgramFactory
 {
 public:
-    static Path GetDefaultVertexShaderPath();
-    static Path GetDefaultFragmentShaderPath();
-    static Path GetPostProcessVertexShaderPath();
+    static Path GetDefaultVertexShaderPath(
+        RenderPass renderPass = RenderPass::SCENE_OPAQUE);
+    static Path GetDefaultFragmentShaderPath(
+        RenderPass renderPass = RenderPass::SCENE_OPAQUE);
+    static Path GetScreenPassVertexShaderPath();
 
-    static ShaderProgram* GetDefault();
-    static ShaderProgram* GetDefaultPostProcess();
-    static ShaderProgram* Get(const Path &vShaderPath, const Path &fShaderPath);
+    static ShaderProgram *GetDefault(
+        RenderPass renderPass = RenderPass::SCENE_OPAQUE);
+    static ShaderProgram *GetDefaultPostProcess();
+    static ShaderProgram *GetPointLightShadowMap();
+    static ShaderProgram *GetPointLightDeferredScreenPass();
+    static ShaderProgram *GetDecal();
+    static ShaderProgram *GetKawaseBlur();
+    static ShaderProgram *GetSeparableBlur();
+    static ShaderProgram *GetSeparableBlurCubeMap();
+    static ShaderProgram *GetRenderTextureToViewport();
+    static ShaderProgram *GetRenderTextureToViewportGamma();
+    static ShaderProgram *GetDirectionalLightShadowMap();
+    static ShaderProgram *GetDirectionalLightDeferredScreenPass();
+    static ShaderProgram *Get(const Path &vShaderPath, const Path &fShaderPath);
+    static ShaderProgram *Get(const Path &vShaderPath,
+                              const Path &gShaderPath,
+                              const Path &fShaderPath);
+    static ShaderProgram *Get(const Path &shaderPath);
+
+    static Path GetEngineShadersDir();
 
 private:
-    Map< std::pair<Path, Path>, RH<ShaderProgram> > m_cache;
+    Map<Path, AH<ShaderProgram>> m_shaderCache;
+    Map<std::tuple<Path, Path, Path>, AH<ShaderProgram>> m_cache;
 
     ShaderProgramFactory() = default;
 
-    static ShaderProgramFactory* GetActive();
+    static ShaderProgram *Get(const Path &vShaderPath,
+                              const Path &gShaderPath,
+                              const Path &fShaderPath,
+                              bool useGeometryShader);
+    static ShaderProgramFactory *GetActive();
 
-    friend class Resources;
+    friend class Assets;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // SHADERPROGRAMFACTORY_H
-
+#endif  // SHADERPROGRAMFACTORY_H

@@ -1,10 +1,11 @@
 #ifndef SYSTEMCLIPBOARD_H
 #define SYSTEMCLIPBOARD_H
 
+#include "Bang/BangDefines.h"
 #include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class SystemClipboard
 {
 public:
@@ -13,7 +14,6 @@ public:
 
     SystemClipboard() = delete;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // SYSTEMCLIPBOARD_H
+#endif  // SYSTEMCLIPBOARD_H

@@ -1,9 +1,14 @@
 #include "Bang/UIHorizontalLayout.h"
 
-USING_NAMESPACE_BANG
+#include "Bang/Axis.h"
+#include "Bang/ClassDB.h"
+#include "Bang/Stretch.h"
 
-UIHorizontalLayout::UIHorizontalLayout() : UIDirLayout(Axis::Horizontal)
+using namespace Bang;
+
+UIHorizontalLayout::UIHorizontalLayout() : UIDirLayout(Axis::HORIZONTAL)
 {
-    SetChildrenHorizontalStretch(Stretch::None);
-    SetChildrenVerticalStretch(Stretch::Full);
+    SET_INSTANCE_CLASS_ID(UIHorizontalLayout);
+    SetChildrenHorizontalStretch(Stretch::NONE);
+    SetChildrenVerticalStretch(Stretch::FULL);
 }

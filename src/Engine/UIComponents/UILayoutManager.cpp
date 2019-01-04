@@ -1,82 +1,170 @@
 #include "Bang/UILayoutManager.h"
 
-#include "Bang/Set.h"
-#include "Bang/Scene.h"
-#include "Bang/AARect.h"
-#include "Bang/UICanvas.h"
-#include "Bang/GameObject.h"
-#include "Bang/Application.h"
-#include "Bang/SceneManager.h"
-#include "Bang/RectTransform.h"
-#include "Bang/ILayoutElement.h"
-#include "Bang/UILayoutIgnorer.h"
-#include "Bang/ILayoutController.h"
-#include "Bang/ITransformListener.h"
-#include "Bang/ILayoutSelfController.h"
+#include <functional>
+#include <iterator>
+#include <map>
+#include <queue>
+#include <unordered_map>
+#include <utility>
 
-USING_NAMESPACE_BANG
+#include "Bang/Component.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/GameObject.h"
+#include "Bang/GameObject.tcc"
+#include "Bang/IEventsDestroy.h"
+#include "Bang/ILayoutController.h"
+#include "Bang/ILayoutElement.h"
+#include "Bang/Map.h"
+#include "Bang/Map.tcc"
+#include "Bang/Math.h"
+#include "Bang/ObjectGatherer.h"
+#include "Bang/ObjectGatherer.tcc"
+#include "Bang/UICanvas.h"
+#include "Bang/UILayoutIgnorer.h"
+#include "Bang/UMap.h"
+#include "Bang/UMap.tcc"
+
+using namespace Bang;
 
 UILayoutManager::UILayoutManager()
 {
 }
 
+template <class T>
+const Array<T *> &GetGatheredArrayOf(
+    UILayoutManager *layoutMgr,
+    GameObject *gameObject,
+    UMap<GameObject *, ObjectGatherer<T, false> *> &gatherMap)
+{
+    if (gameObject)
+    {
+        auto it = gatherMap.Find(gameObject);
+        if (it == gatherMap.End())
+        {
+            ObjectGatherer<T, false> *objGatherer =
+                new ObjectGatherer<T, false>();
+            objGatherer->SetRoot(gameObject);
+            gatherMap.Add(gameObject, objGatherer);
+            gameObject->EventEmitter<IEventsDestroy>::RegisterListener(
+                layoutMgr);
+            return gatherMap.Get(gameObject)->GetGatheredObjects();
+        }
+        else
+        {
+            return it->second->GetGatheredObjects();
+        }
+    }
+    return Array<T *>::Empty();
+}
+
+const Array<ILayoutElement *> &UILayoutManager::GetLayoutElementsIn(
+    GameObject *gameObject)
+{
+    return GetGatheredArrayOf<ILayoutElement>(
+        this, gameObject, m_iLayoutElementsPerGameObject);
+}
+
+const Array<ILayoutController *> &UILayoutManager::GetLayoutControllersIn(
+    GameObject *gameObject)
+{
+    return GetGatheredArrayOf<ILayoutController>(
+        this, gameObject, m_iLayoutControllersPerGameObject);
+}
+
 void UILayoutManager::PropagateInvalidation(ILayoutElement *element)
 {
-    Component *comp = Cast<Component*>(element);
-    GameObject *go = Cast<GameObject*>(element);
-    if (!go && comp) { go = comp->GetGameObject(); }
-    if (!go) { return; }
+    Component *comp = DCAST<Component *>(element);
+    GameObject *go = DCAST<GameObject *>(element);
+    if (!go && comp)
+    {
+        go = comp->GetGameObject();
+    }
 
-    auto pLayoutContrs = go->GetComponentsInParent<ILayoutController>(false);
-    for (ILayoutController *pCont : pLayoutContrs) { pCont->Invalidate(); }
+    if (go)
+    {
+        const Array<ILayoutController *> &layoutControllers =
+            GetLayoutControllersIn(go->GetParent());
+        for (ILayoutController *layoutController : layoutControllers)
+        {
+            if (!layoutController->IsSelfController())
+            {
+                layoutController->Invalidate();
+            }
+        }
+
+        for (ILayoutController *layoutController : layoutControllers)
+        {
+            if (layoutController->IsSelfController())
+            {
+                layoutController->Invalidate();
+            }
+        }
+    }
 }
 
 void UILayoutManager::PropagateInvalidation(ILayoutController *controller)
 {
-    Component *comp = Cast<Component*>(controller);
-    GameObject *go = Cast<GameObject*>(controller);
-    if (!go && comp) { go = comp->GetGameObject(); }
-    if (!go) { return; }
-
-    ILayoutElement *lElm = comp ? Cast<ILayoutElement*>(comp) : nullptr;
-    if (!lElm) { lElm = go ? Cast<ILayoutElement*>(go) : nullptr; }
-    if (lElm)
+    Component *comp = DCAST<Component *>(controller);
+    GameObject *go = DCAST<GameObject *>(controller);
+    if (!go && comp)
     {
-        lElm->Invalidate();
+        go = comp->GetGameObject();
+    }
+
+    if (go)
+    {
+        ILayoutElement *lElm = comp ? DCAST<ILayoutElement *>(comp) : nullptr;
+        if (!lElm)
+        {
+            lElm = go ? DCAST<ILayoutElement *>(go) : nullptr;
+        }
+
+        if (lElm)
+        {
+            lElm->Invalidate();
+        }
     }
 }
 
 Vector2i UILayoutManager::GetMinSize(GameObject *go)
 {
-    return Vector2i( UILayoutManager::GetSize(go, LayoutSizeType::Min) );
+    return Vector2i(UILayoutManager::GetSize(go, LayoutSizeType::MIN));
 }
 
 Vector2i UILayoutManager::GetPreferredSize(GameObject *go)
 {
-    return Vector2i( UILayoutManager::GetSize(go, LayoutSizeType::Preferred) );
+    return Vector2i(UILayoutManager::GetSize(go, LayoutSizeType::PREFERRED));
 }
 
 Vector2 UILayoutManager::GetFlexibleSize(GameObject *go)
 {
-    return UILayoutManager::GetSize(go, LayoutSizeType::Flexible);
+    return UILayoutManager::GetSize(go, LayoutSizeType::FLEXIBLE);
 }
 
 Vector2 UILayoutManager::GetSize(GameObject *go, LayoutSizeType sizeType)
 {
     // Retrieve layout elements and their respective priority
-    Map<int, List<ILayoutElement*> > priorLayoutElms;
-    List<ILayoutElement*> les = go->GetComponents<ILayoutElement>();
-    if (les.IsEmpty()) { return Vector2::Zero; }
+    Map<int, Array<ILayoutElement *>> priorLayoutElms;
+    Array<ILayoutElement *> les = go->GetComponents<ILayoutElement>();
+    if (les.IsEmpty())
+    {
+        return Vector2::Zero();
+    }
+
     for (ILayoutElement *le : les)
     {
         int prior = le->GetLayoutPriority();
         if (!priorLayoutElms.ContainsKey(prior))
         {
-            priorLayoutElms.Add(prior, List<ILayoutElement*>());
+            priorLayoutElms.Add(prior, Array<ILayoutElement *>());
         }
         priorLayoutElms.Get(prior).PushBack(le);
     }
-    if (priorLayoutElms.IsEmpty()) { return Vector2::Zero; }
+
+    if (priorLayoutElms.IsEmpty())
+    {
+        return Vector2::Zero();
+    }
 
     // Get the max size between the elements ordered by priority.
     // Sizes less than zero will be ignored.
@@ -84,29 +172,49 @@ Vector2 UILayoutManager::GetSize(GameObject *go, LayoutSizeType sizeType)
     bool sizeXFound = false, sizeYFound = false;
     for (auto it = priorLayoutElms.RBegin(); it != priorLayoutElms.REnd(); ++it)
     {
-        const List<ILayoutElement*> &les = (*it).second;
+        const Array<ILayoutElement *> &les = (*it).second;
         for (ILayoutElement *le : les)
         {
-            Vector2 leSize =  le->GetSize(sizeType);
-            if (!sizeXFound) { size.x = Math::Max(size.x, leSize.x); }
-            if (!sizeYFound) { size.y = Math::Max(size.y, leSize.y); }
+            Vector2 leSize = le->GetSize(sizeType);
+            if (!sizeXFound)
+            {
+                size.x = Math::Max(size.x, leSize.x);
+            }
+
+            if (!sizeYFound)
+            {
+                size.y = Math::Max(size.y, leSize.y);
+            }
         }
 
-        if (size.x >= 0) { sizeXFound = true; }
-        if (size.y >= 0) { sizeYFound = true; }
-        if (sizeXFound && sizeYFound) { break; }
+        if (size.x >= 0)
+        {
+            sizeXFound = true;
+        }
+
+        if (size.y >= 0)
+        {
+            sizeYFound = true;
+        }
+
+        if (sizeXFound && sizeYFound)
+        {
+            break;
+        }
     }
-    return Vector2::Max(size, Vector2::Zero);
+
+    return Vector2::Max(size, Vector2::Zero());
 }
 
-List<GameObject *> UILayoutManager::GetLayoutableChildrenList(GameObject *go)
+Array<GameObject *> UILayoutManager::GetLayoutableChildrenList(GameObject *go)
 {
-    List<GameObject*> childrenList;
+    Array<GameObject *> childrenList;
     for (GameObject *child : go->GetChildren())
     {
         UILayoutIgnorer *ltIgnorer = child->GetComponent<UILayoutIgnorer>();
         bool ignoreLayout = ltIgnorer ? ltIgnorer->IsIgnoreLayout() : false;
-        if (child->IsEnabled() && child->HasComponent<ILayoutElement>() && !ignoreLayout)
+        if (child->IsEnabledRecursively() &&
+            child->HasComponent<ILayoutElement>() && !ignoreLayout)
         {
             childrenList.PushBack(child);
         }
@@ -116,23 +224,23 @@ List<GameObject *> UILayoutManager::GetLayoutableChildrenList(GameObject *go)
 
 void UILayoutManager::RebuildLayout(GameObject *rootGo)
 {
-    if (!rootGo) { return; }
-
-    CalculateLayout(rootGo, Axis::Horizontal);
-    ApplyLayout(rootGo, Axis::Horizontal);
-    CalculateLayout(rootGo, Axis::Vertical);
-    ApplyLayout(rootGo, Axis::Vertical);
+    if (rootGo)
+    {
+        CalculateLayout(rootGo, Axis::HORIZONTAL);
+        ApplyLayout(rootGo, Axis::HORIZONTAL);
+        CalculateLayout(rootGo, Axis::VERTICAL);
+        ApplyLayout(rootGo, Axis::VERTICAL);
+    }
 }
 
 void UILayoutManager::CalculateLayout(GameObject *gameObject, Axis axis)
 {
-    const List<GameObject*> &children = gameObject->GetChildren();
-    for (GameObject *child : children)
+    for (GameObject *child : gameObject->GetChildren())
     {
         CalculateLayout(child, axis);
     }
 
-    List<ILayoutElement*> goLEs = gameObject->GetComponents<ILayoutElement>();
+    const Array<ILayoutElement *> &goLEs = GetLayoutElementsIn(gameObject);
     for (ILayoutElement *goLE : goLEs)
     {
         goLE->_CalculateLayout(axis);
@@ -141,44 +249,103 @@ void UILayoutManager::CalculateLayout(GameObject *gameObject, Axis axis)
 
 void UILayoutManager::ApplyLayout(GameObject *gameObject, Axis axis)
 {
-    std::queue<GameObject*> goQueue; goQueue.push(gameObject);
+    std::queue<GameObject *> goQueue;
+    goQueue.push(gameObject);
     while (!goQueue.empty())
     {
-        GameObject *go = goQueue.front(); goQueue.pop();
+        GameObject *go = goQueue.front();
+        goQueue.pop();
 
-        List<ILayoutController*> layoutControllers =
-                                        go->GetComponents<ILayoutController>();
+        const Array<ILayoutController *> &layoutControllers =
+            GetLayoutControllersIn(go);
 
         // SelfLayoutControllers
         for (ILayoutController *layoutController : layoutControllers)
         {
-            ILayoutSelfController *selfController =
-                           DCAST<ILayoutSelfController*>(layoutController);
-            if (selfController) { selfController->_ApplyLayout(axis); }
-        }
-
-        // Normal LayoutControllers
-        for (ILayoutController *layoutController : layoutControllers)
-        {
-            if (!DCAST<ILayoutSelfController*>(layoutController))
+            if (layoutController->IsSelfController())
             {
                 layoutController->_ApplyLayout(axis);
             }
         }
 
-        const List<GameObject*> &children = go->GetChildren();
-        for (GameObject *child : children) { goQueue.push(child); }
+        // Normal LayoutControllers
+        for (ILayoutController *layoutController : layoutControllers)
+        {
+            if (!layoutController->IsSelfController())
+            {
+                layoutController->_ApplyLayout(axis);
+            }
+        }
+
+        for (GameObject *child : go->GetChildren())
+        {
+            goQueue.push(child);
+        }
+    }
+}
+
+void UILayoutManager::OnDestroyed(EventEmitter<IEventsDestroy> *object)
+{
+    ASSERT(DCAST<GameObject *>(object));
+    if (GameObject *go = SCAST<GameObject *>(object))
+    {
+        {
+            auto it = m_iLayoutElementsPerGameObject.Find(go);
+            ASSERT(it != m_iLayoutElementsPerGameObject.End());
+            m_iLayoutElementsPerGameObject.Remove(it);
+            delete it->second;
+        }
+
+        {
+            auto it = m_iLayoutControllersPerGameObject.Find(go);
+            ASSERT(it != m_iLayoutControllersPerGameObject.End());
+            m_iLayoutControllersPerGameObject.Remove(it);
+            delete it->second;
+        }
     }
 }
 
 UILayoutManager *UILayoutManager::GetActive(GameObject *go)
 {
-    UICanvas *canvas = UICanvas::GetActive(go);
-    return canvas ? canvas->GetLayoutManager() : nullptr;
+    if (go)
+    {
+        UICanvas *canvas = UICanvas::GetActive(go);
+        return canvas ? canvas->GetLayoutManager() : nullptr;
+    }
+    return nullptr;
 }
 
 UILayoutManager *UILayoutManager::GetActive(Component *comp)
 {
-    return UILayoutManager::GetActive(comp->GetGameObject());
+    return comp ? UILayoutManager::GetActive(comp->GetGameObject()) : nullptr;
 }
 
+UILayoutManager *UILayoutManager::GetActive(ILayoutElement *layoutElement)
+{
+    if (Component *comp = DCAST<Component *>(layoutElement))
+    {
+        return UILayoutManager::GetActive(comp);
+    }
+
+    if (GameObject *go = DCAST<GameObject *>(layoutElement))
+    {
+        return UILayoutManager::GetActive(go);
+    }
+
+    return nullptr;
+}
+
+UILayoutManager *UILayoutManager::GetActive(ILayoutController *layoutController)
+{
+    if (Component *comp = DCAST<Component *>(layoutController))
+    {
+        return UILayoutManager::GetActive(comp);
+    }
+
+    if (GameObject *go = DCAST<GameObject *>(layoutController))
+    {
+        return UILayoutManager::GetActive(go);
+    }
+
+    return nullptr;
+}

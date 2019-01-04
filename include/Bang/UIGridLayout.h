@@ -1,10 +1,14 @@
 #ifndef UIGRIDLAYOUT_H
 #define UIGRIDLAYOUT_H
 
+#include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/String.h"
 #include "Bang/UIGroupLayout.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class UIGridLayout : public UIGroupLayout
 {
     COMPONENT(UIGridLayout)
@@ -14,7 +18,7 @@ public:
 
     int GetNumRows() const;
     int GetNumColumns() const;
-    const Vector2i& GetCellSize() const;
+    const Vector2i &GetCellSize() const;
 
     // ILayoutController
     virtual void ApplyLayout(Axis axis) override;
@@ -26,12 +30,10 @@ private:
     Vector2i m_cellSize = Vector2i(40);
 
     UIGridLayout();
-    virtual ~UIGridLayout();
+    virtual ~UIGridLayout() override;
 
     Vector2i GetTotalSpacing() const;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIGRIDLAYOUT_H
-
+#endif  // UIGRIDLAYOUT_H

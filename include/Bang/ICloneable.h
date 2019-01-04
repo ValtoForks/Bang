@@ -1,34 +1,39 @@
 #ifndef ICLONEABLE_H
 #define ICLONEABLE_H
 
-#include "Bang/Bang.h"
-#include "Bang/Debug.h"
+#include "Bang/Assert.h"
+#include "Bang/BangDefines.h"
 
-NAMESPACE_BANG_BEGIN
-
-#define ICLONEABLE(CLASS) \
-    public: \
-    virtual CLASS* Clone() const override { \
-        CLASS *c = new CLASS(); \
-        CloneInto(c); \
-        return c; \
+namespace Bang
+{
+#define ICLONEABLE(CLASS)                               \
+public:                                                 \
+    virtual CLASS *Clone(bool cloneGUID) const override \
+    {                                                   \
+        CLASS *c = new CLASS();                         \
+        CloneInto(c, cloneGUID);                        \
+        return c;                                       \
     }
 
 class ICloneable
 {
 public:
-    virtual ICloneable* Clone() const
+    virtual ICloneable *Clone(bool cloneGUID) const
     {
+        BANG_UNUSED(cloneGUID);
         ASSERT_MSG(false, "Method not implemented");
         return nullptr;
     }
 
 protected:
-    ICloneable() {}
-    virtual ~ICloneable() {}
-    virtual void CloneInto(ICloneable *clone) const = 0;
+    ICloneable()
+    {
+    }
+    virtual ~ICloneable()
+    {
+    }
+    virtual void CloneInto(ICloneable *clone, bool cloneGUID) const = 0;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // ICLONEABLE_H
+#endif  // ICLONEABLE_H

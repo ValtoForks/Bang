@@ -1,38 +1,40 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-#include "Bang/List.h"
+#include "Bang/Array.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Path.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class Compiler
 {
 public:
     enum OutputType
     {
-        Object,
-        SharedLib,
-        Executable
+        OBJECT,
+        SHARED_LIB,
+        EXECUTABLE
     };
 
     struct Job
     {
-        List<Path> includePaths;
-        List<Path> libDirs;
-        List<String> libraries;
-        List<String> flags;
+        Array<Path> includePaths;
+        Array<Path> libDirs;
+        Array<String> libraries;
+        Array<String> flags;
         Path outputFile;
-        OutputType outputMode = OutputType::Executable;
+        OutputType outputMode = OutputType::EXECUTABLE;
 
         void AddInputFile(const Path &path);
         void AddInputFiles(const Array<Path> &paths);
         void AddInputFile(const String &path);
         void AddInputFiles(const Array<String> &paths);
-        const List<String>& GetInputFiles() const;
+        const Array<String> &GetInputFiles() const;
 
     private:
-        List<String> inputFiles; // cpp or objects
+        Array<String> inputFiles;  // cpp or objects
     };
 
     struct Result
@@ -47,7 +49,6 @@ public:
 private:
     Compiler();
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // COMPILER_H
+#endif  // COMPILER_H

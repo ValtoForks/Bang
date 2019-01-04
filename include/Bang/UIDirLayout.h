@@ -1,13 +1,17 @@
 #ifndef UIDIRLAYOUT_H
 #define UIDIRLAYOUT_H
 
+#include "Bang/Array.h"
 #include "Bang/Axis.h"
-#include "Bang/List.h"
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/String.h"
 #include "Bang/UIGroupLayout.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class RectTransform;
+namespace Bang
+{
+class GameObject;
+class RectTransform;
 
 class UIDirLayout : public UIGroupLayout
 {
@@ -26,12 +30,12 @@ public:
 protected:
     UIDirLayout();
     UIDirLayout(Axis axis);
-    virtual ~UIDirLayout();
+    virtual ~UIDirLayout() override;
 
 private:
-    Axis m_axis = Axis::Horizontal;
+    Axis m_axis = Axis::HORIZONTAL;
 
-    Vector2i GetTotalSpacing(const List<GameObject*> &children) const;
+    Vector2i GetTotalSpacing(const Array<GameObject *> &children) const;
 
     void ApplyLayoutToChildRectTransform(Axis rebuildPassAxis,
                                          const Vector2i &layoutRectSize,
@@ -40,21 +44,20 @@ private:
                                          const Vector2i &childRTSize);
 
     void FillChildrenMinSizes(const Vector2i &layoutRectSize,
-                              const List<GameObject*> &children,
+                              const Array<GameObject *> &children,
                               Array<Vector2i> *childrenRTSizes,
                               Vector2i *availableSpace);
     void FillChildrenPreferredSizes(const Vector2i &layoutRectSize,
-                                    const List<GameObject*> &children,
+                                    const Array<GameObject *> &children,
                                     Array<Vector2i> *childrenRTSizes,
                                     Vector2i *availableSpace);
     void FillChildrenFlexibleSizes(const Vector2i &layoutRectSize,
-                                   const List<GameObject*> &children,
+                                   const Array<GameObject *> &children,
                                    Array<Vector2i> *childrenRTSizes,
                                    Vector2i *availableSpace);
     void ApplyStretches(const Vector2i &layoutRectSize,
                         Array<Vector2i> *childrenRTSizes);
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIDIRLAYOUT_H
+#endif  // UIDIRLAYOUT_H

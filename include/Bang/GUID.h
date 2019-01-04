@@ -1,37 +1,34 @@
 #ifndef GUID_H
 #define GUID_H
 
+#include <stdint.h>
 #include <istream>
+#include <system_error>
+#include <unordered_map>
 
-#include "Bang/Time.h"
-#include "Bang/String.h"
-#include "Bang/Random.h"
-#include "Bang/IToString.h"
+#include "Bang/BangDefines.h"
 
-NAMESPACE_BANG_BEGIN
-
-class GUID : public IToString
+namespace Bang
+{
+class GUID
 {
 public:
     using GUIDType = uint64_t;
+    static GUIDType EmptyGUID();
+    static const GUID &Empty();
 
-private: static constexpr GUIDType EmptyGUID = 0;
-public:
-    GUID() {}
+    GUID() = default;
 
-    static const GUID& Empty();
     bool IsEmpty() const;
 
     static GUID GetRandomGUID();
 
-    // IToString
-    String ToString() const override;
+    const GUIDType &GetTimeGUID() const;
+    const GUIDType &GetRandGUID() const;
+    const GUIDType &GetEmbeddedAssetGUID() const;
 
-    const GUIDType& GetTimeGUID() const;
-    const GUIDType& GetRandGUID() const;
-    const GUIDType& GetInsideFileGUID() const;
-
-    GUID WithoutInsideFileGUID() const;
+    GUID WithEmbeddedAssetGUID(GUID::GUIDType embeddedFileGUID) const;
+    GUID WithoutEmbeddedAssetGUID() const;
 
     std::istream &operator>>(std::istream &is);
     bool operator==(const GUID &rhs) const;
@@ -39,15 +36,29 @@ public:
     bool operator<(const GUID &rhs) const;
 
 private:
-    GUIDType m_timeGUID       = GUID::EmptyGUID;
-    GUIDType m_randGUID       = GUID::EmptyGUID;
-    GUIDType m_insideFileGUID = GUID::EmptyGUID;
+    GUIDType m_timeGUID = GUID::EmptyGUID();
+    GUIDType m_randGUID = GUID::EmptyGUID();
+    GUIDType m_embeddedAssetGUID = GUID::EmptyGUID();
 
-    void SetInsideFileGUID(const GUIDType &guid);
+    void SetEmbeddedAssetGUID(const GUIDType &guid);
 
     friend class GUIDManager;
 };
+}
 
-NAMESPACE_BANG_END
+// Hash for GUID
+namespace std
+{
+template <>
+struct hash<Bang::GUID>
+{
+    std::size_t operator()(const Bang::GUID &guid) const
+    {
+        return std::hash<Bang::GUID::GUIDType>()(guid.GetTimeGUID()) ^
+               std::hash<Bang::GUID::GUIDType>()(guid.GetRandGUID()) ^
+               std::hash<Bang::GUID::GUIDType>()(guid.GetEmbeddedAssetGUID());
+    }
+};
+}
 
-#endif // GUID_H
+#endif  // GUID_H

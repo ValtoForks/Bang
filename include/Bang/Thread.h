@@ -1,13 +1,15 @@
 #ifndef THREAD_H
 #define THREAD_H
 
+#include <functional>
 #include <thread>
 
+#include "Bang/BangDefines.h"
 #include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class ThreadRunnable;
+namespace Bang
+{
+class ThreadRunnable;
 
 class Thread
 {
@@ -41,7 +43,6 @@ private:
     friend int ThreadFunc(ThreadRunnable *runnable, Thread *thread);
 };
 
-
 class ThreadRunnable
 {
 public:
@@ -62,6 +63,16 @@ private:
     friend class Thread;
 };
 
-NAMESPACE_BANG_END
+class ThreadRunnableLambda : public ThreadRunnable
+{
+public:
+    ThreadRunnableLambda(const std::function<void()> &runFunction);
 
-#endif // THREAD_H
+    void Run() override;
+
+private:
+    std::function<void()> m_runFunction;
+};
+}
+
+#endif  // THREAD_H

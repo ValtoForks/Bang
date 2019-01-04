@@ -1,22 +1,40 @@
 #ifndef SHADERPREPROCESSOR_H
 #define SHADERPREPROCESSOR_H
 
-#include "Bang/String.h"
+#include "Bang/BangDefines.h"
+#include "Bang/GL.h"
+#include "Bang/ShaderProgramProperties.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class String;
+
+enum class ShaderSection
+{
+    VERTEX = 0,
+    GEOMETRY,
+    FRAGMENT,
+    PROPERTIES
+};
 
 class ShaderPreprocessor
 {
 public:
-    static void PreprocessCode(String *shaderSourceCode);
+    ShaderPreprocessor() = delete;
 
-protected:
-    static const String GLSLVersionString;
+    static void PreprocessCode(String *shaderSourceCode);
+    static String GetSectionSourceCode(const String &sourceCode,
+                                       GL::ShaderType shaderType);
+    static String GetSectionSourceCode(const String &sourceCode,
+                                       ShaderSection shaderSection);
+
+    static ShaderProgramProperties GetShaderProperties(
+        const String &sourceCode);
 
 private:
-    ShaderPreprocessor();
+    static const String GLSLVersionString;
+    static Array<String> GetSectionKeywords();
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // SHADERPREPROCESSOR_H
+#endif  // SHADERPREPROCESSOR_H

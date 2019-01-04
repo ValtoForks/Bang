@@ -1,61 +1,95 @@
 #include "Bang/GUID.h"
 
-USING_NAMESPACE_BANG
+#include <stdio.h>
+#include <cctype>
 
-const GUID &GUID::Empty() { static GUID emptyGUID; return emptyGUID; }
+#include "Bang/Math.h"
+#include "Bang/Random.h"
+#include "Bang/Time.h"
 
-bool GUID::IsEmpty() const { return *this == Empty(); }
+using namespace Bang;
 
-void GUID::SetInsideFileGUID(const GUIDType &guid)
+GUID::GUIDType GUID::EmptyGUID()
 {
-    m_insideFileGUID = guid;
+    return 0;
+}
+
+const GUID &GUID::Empty()
+{
+    static GUID emptyGUID;
+    return emptyGUID;
+}
+
+bool GUID::IsEmpty() const
+{
+    return *this == Empty();
+}
+
+void GUID::SetEmbeddedAssetGUID(const GUIDType &guid)
+{
+    m_embeddedAssetGUID = guid;
 }
 
 GUID GUID::GetRandomGUID()
 {
     GUID guid;
-    guid.m_timeGUID = Time::GetNow_Nanos();
+    guid.m_timeGUID = Time::GetNow().GetNanos();
     guid.m_randGUID = Random::GetRange<GUIDType>(1, Math::Max<GUIDType>());
-    guid.m_insideFileGUID = 0;
+    guid.m_embeddedAssetGUID = GUID::EmptyGUID();
     return guid;
 }
 
-String GUID::ToString() const
+const GUID::GUIDType &GUID::GetTimeGUID() const
 {
-    return String::ToString( GetTimeGUID() ) + " " +
-           String::ToString( GetRandGUID() ) + " " +
-           String::ToString( GetInsideFileGUID() );
+    return m_timeGUID;
+}
+const GUID::GUIDType &GUID::GetRandGUID() const
+{
+    return m_randGUID;
+}
+const GUID::GUIDType &GUID::GetEmbeddedAssetGUID() const
+{
+    return m_embeddedAssetGUID;
 }
 
-const GUID::GUIDType &GUID::GetTimeGUID() const { return m_timeGUID; }
-const GUID::GUIDType &GUID::GetRandGUID() const { return m_randGUID; }
-const GUID::GUIDType &GUID::GetInsideFileGUID() const
-{
-    return m_insideFileGUID;
-}
-
-GUID GUID::WithoutInsideFileGUID() const
+GUID GUID::WithEmbeddedAssetGUID(GUID::GUIDType embeddedFileGUID) const
 {
     GUID guid = *this;
-    guid.SetInsideFileGUID(0);
+    guid.SetEmbeddedAssetGUID(embeddedFileGUID);
+    return guid;
+}
+
+GUID GUID::WithoutEmbeddedAssetGUID() const
+{
+    GUID guid = *this;
+    guid.SetEmbeddedAssetGUID(GUID::EmptyGUID());
     return guid;
 }
 
 std::istream &GUID::operator>>(std::istream &is)
 {
-    if (is.peek() != EOF && std::isdigit(is.peek())) { is >> m_timeGUID; }
+    if (is.peek() != EOF && std::isdigit(is.peek()))
+    {
+        is >> m_timeGUID;
+    }
     is >> std::ws;
-    if (is.peek() != EOF && std::isdigit(is.peek())) { is >> m_randGUID; }
+    if (is.peek() != EOF && std::isdigit(is.peek()))
+    {
+        is >> m_randGUID;
+    }
     is >> std::ws;
-    if (is.peek() != EOF && std::isdigit(is.peek())) { is >> m_insideFileGUID; }
+    if (is.peek() != EOF && std::isdigit(is.peek()))
+    {
+        is >> m_embeddedAssetGUID;
+    }
     return is;
 }
 
 bool GUID::operator==(const GUID &rhs) const
 {
-    return        GetTimeGUID() ==       rhs.GetTimeGUID() &&
-                  GetRandGUID() ==       rhs.GetRandGUID() &&
-            GetInsideFileGUID() == rhs.GetInsideFileGUID();
+    return GetTimeGUID() == rhs.GetTimeGUID() &&
+           GetRandGUID() == rhs.GetRandGUID() &&
+           GetEmbeddedAssetGUID() == rhs.GetEmbeddedAssetGUID();
 }
 
 bool GUID::operator!=(const GUID &rhs) const
@@ -65,15 +99,27 @@ bool GUID::operator!=(const GUID &rhs) const
 
 bool GUID::operator<(const GUID &rhs) const
 {
-    if (GetTimeGUID() < rhs.GetTimeGUID()) { return true; }
-    else if (GetTimeGUID() > rhs.GetTimeGUID()) { return false; }
+    if (GetTimeGUID() < rhs.GetTimeGUID())
+    {
+        return true;
+    }
+    else if (GetTimeGUID() > rhs.GetTimeGUID())
+    {
+        return false;
+    }
     else
     {
-        if (GetRandGUID() < rhs.GetRandGUID()) { return true; }
-        else if (GetRandGUID() > rhs.GetRandGUID()) { return false; }
+        if (GetRandGUID() < rhs.GetRandGUID())
+        {
+            return true;
+        }
+        else if (GetRandGUID() > rhs.GetRandGUID())
+        {
+            return false;
+        }
         else
         {
-            return (GetInsideFileGUID() < rhs.GetInsideFileGUID());
+            return (GetEmbeddedAssetGUID() < rhs.GetEmbeddedAssetGUID());
         }
     }
 }

@@ -1,63 +1,60 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-#include <GL/glew.h>
-
-#include "Bang/Vector2.h"
+#include "Bang/Asset.h"
+#include "Bang/BangDefines.h"
+#include "Bang/Color.h"
+#include "Bang/GL.h"
 #include "Bang/GLObject.h"
-#include "Bang/IEventEmitter.h"
-#include "Bang/ITextureChangedListener.h"
+#include "Bang/Image.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-class Texture : public GLObject,
-                public EventEmitter<ITextureChangedListener>
+namespace Bang
 {
-public:
+class Texture : public GLObject, public Asset
+{
+    ASSET_ABSTRACT(Texture)
 
+public:
     Texture();
     Texture(GL::TextureTarget texTarget);
-    Texture(const Texture &t);
-    virtual ~Texture();
+    virtual ~Texture() override;
 
-    virtual void CreateEmpty(int width, int height) = 0;
-    virtual void Resize(int width, int height) = 0;
+    void GenerateMipMaps() const;
 
     void SetFormat(GL::ColorFormat internalFormat);
     void SetTarget(GL::TextureTarget target);
     void SetFilterMode(GL::FilterMode filterMode);
     void SetWrapMode(GL::WrapMode wrapMode);
 
-    int GetWidth() const;
-    int GetHeight() const;
-    const Vector2i& GetSize() const;
-    GL::FilterMode GetFilterMode() const;
-    GL::WrapMode GetWrapMode() const;
-
     GL::DataType GetDataType() const;
     GL::ColorComp GetColorComp() const;
     GL::ColorFormat GetFormat() const;
+    GL::FilterMode GetFilterMode() const;
+    int GetNumComponents() const;
     uint GetBytesSize() const;
+    GL::WrapMode GetWrapMode(
+        GL::WrapCoord wrapCoord = GL::WrapCoord::WRAP_R) const;
 
     GL::TextureTarget GetTextureTarget() const;
-    GL::BindTarget GetGLBindTarget() const override;
 
 protected:
-    void SetWidth(int width);
-    void SetHeight(int height);
+    void SetWrapMode(GL::WrapMode wrapMode, GL::WrapCoord wrapCoord);
 
-    void PropagateTextureChanged();
+    GL::WrapMode GetWrapMode(Axis3D dim) const;
+    static Color GetColorFromFloatArray(const float *pixels, int i);
+    static Color GetColorFromByteArray(const Byte *pixels, int i);
+
+    virtual void OnFormatChanged();
 
 private:
-    Vector2i m_size = Vector2i::Zero;
+    GL::ColorFormat m_glFormat = Undef<GL::ColorFormat>();
+    GL::TextureTarget m_target = Undef<GL::TextureTarget>();
 
     GL::FilterMode m_filterMode = Undef<GL::FilterMode>();
-    GL::WrapMode m_wrapMode     = Undef<GL::WrapMode>();
-
-    GL::ColorFormat m_glFormat = GL::ColorFormat::RGBA_Float32;
-    GL::TextureTarget m_target = GL::TextureTarget::Texture2D;
+    std::array<GL::WrapMode, 3> m_wrapMode = {
+        {Undef<GL::WrapMode>(), Undef<GL::WrapMode>(), Undef<GL::WrapMode>()}};
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // TEXTURE_H
+#endif  // TEXTURE_H

@@ -2,7 +2,7 @@
 
 #include "Bang/GL.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 VBO::VBO()
 {
@@ -14,16 +14,29 @@ VBO::~VBO()
     GL::DeleteBuffers(1, &m_idGL);
 }
 
-void VBO::Fill(const void *data, int dataSize, GL::UsageHint usage)
+void VBO::Update(const void *data, uint dataSize, uint offset)
 {
+    GL::Push(GL::Pushable::VBO);
+
+    Bind();
+    GL::BufferSubData(GetGLBindTarget(), offset, dataSize, data);
+
+    GL::Pop(GL::Pushable::VBO);
+}
+
+void VBO::CreateAndFill(const void *data, uint dataSize, GL::UsageHint usage)
+{
+    GL::Push(GL::Pushable::VBO);
+
     Bind();
     GL::BufferData(GetGLBindTarget(), dataSize, data, usage);
-    UnBind();
+
+    GL::Pop(GL::Pushable::VBO);
 }
 
 GL::BindTarget VBO::GetGLBindTarget() const
 {
-    return GL::BindTarget::ArrayBuffer;
+    return GL::BindTarget::ARRAY_BUFFER;
 }
 
 void VBO::Bind() const

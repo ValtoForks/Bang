@@ -2,7 +2,7 @@
 
 #include "Bang/GL.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 IBO::IBO()
 {
@@ -23,7 +23,7 @@ void IBO::Fill(const void *data, int dataSize, GL::UsageHint usage)
 
 GL::BindTarget IBO::GetGLBindTarget() const
 {
-    return GL::BindTarget::ElementArrayBuffer;
+    return GL::BindTarget::ELEMENT_ARRAY_BUFFER;
 }
 
 void IBO::Bind() const

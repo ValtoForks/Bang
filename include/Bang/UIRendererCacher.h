@@ -1,32 +1,48 @@
 #ifndef UIRENDERERCACHER_H
 #define UIRENDERERCACHER_H
 
-#include <unordered_map>
+#include <vector>
 
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEventsChildren.h"
+#include "Bang/IEventsComponent.h"
+#include "Bang/IEventsGameObjectVisibilityChanged.h"
+#include "Bang/IEventsRendererChanged.h"
+#include "Bang/IEventsTransform.h"
 #include "Bang/RenderPass.h"
-#include "Bang/UIRenderer.h"
-#include "Bang/IChildrenListener.h"
-#include "Bang/IRendererChangedListener.h"
-#include "Bang/IGameObjectVisibilityChangedListener.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Framebuffer;
-FORWARD class ShaderProgram;
-FORWARD class UIImageRenderer;
-
-class UIRendererCacher : public Component,
-                         public IChildrenListener,
-                         public ITransformListener,
-                         public IRendererChangedListener,
-                         public IGameObjectVisibilityChangedListener
+namespace Bang
 {
-    COMPONENT( UIRendererCacher )
+class Framebuffer;
+class GameObject;
+class IEventsChildren;
+class IEventsComponent;
+class IEventsGameObjectVisibilityChanged;
+class IEventsRendererChanged;
+class IEventsTransform;
+class Object;
+class Renderer;
+class UIImageRenderer;
+
+class UIRendererCacher
+    : public Component,
+      public EventListener<IEventsChildren>,
+      public EventListener<IEventsTransform>,
+      public EventListener<IEventsComponent>,
+      public EventListener<IEventsRendererChanged>,
+      public EventListener<IEventsGameObjectVisibilityChanged>
+{
+    COMPONENT(UIRendererCacher)
 
 public:
-	UIRendererCacher();
-	virtual ~UIRendererCacher();
+    UIRendererCacher();
+    virtual ~UIRendererCacher() override;
 
     void OnStart() override;
     void OnRender(RenderPass renderPass) override;
@@ -39,20 +55,25 @@ public:
 
     void OnChanged();
 
-    // IChildrenListener
+    // IEventsComponent
+    virtual void OnComponentAdded(Component *addedComponent, int index);
+    virtual void OnComponentRemoved(Component *removedComponent,
+                                    GameObject *previousGameObject);
+
+    // IEventsChildren
     void OnChildAdded(GameObject *addedChild, GameObject *parent) override;
     void OnChildRemoved(GameObject *removedChild, GameObject *parent) override;
 
-    // ITransformListener
+    // IEventsTransform
     void OnTransformChanged() override;
 
-    // IRendererChangedListener
+    // IEventsRendererChanged
     void OnRendererChanged(Renderer *changedRenderer) override;
 
-    // IObjectListener
-    void OnStarted() override;
-    void OnEnabled() override;
-    void OnDisabled() override;
+    // IEventsObject
+    void OnStarted(Object *object) override;
+    void OnEnabled(Object *object) override;
+    void OnDisabled(Object *object) override;
 
 private:
     bool m_cachingEnabled = true;
@@ -63,15 +84,13 @@ private:
     UIImageRenderer *p_cachedImageRenderer = nullptr;
 
     void SetContainerVisible(bool visible);
-    static UIRendererCacher* CreateInto(GameObject *go);
+    static UIRendererCacher *CreateInto(GameObject *go);
 
-    // IGameObjectVisibilityChangedListener
+    // IEventsGameObjectVisibilityChanged
     void OnVisibilityChanged(GameObject *go) override;
 
     friend class GameObjectFactory;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIRENDERERCACHER_H
-
+#endif  // UIRENDERERCACHER_H

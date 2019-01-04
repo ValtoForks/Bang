@@ -1,10 +1,6 @@
 #include "Bang/ChronoGL.h"
 
-#include <iostream>
-
-#include "Bang/Time.h"
-
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 ChronoGL::ChronoGL()
 {
@@ -18,7 +14,10 @@ ChronoGL::~ChronoGL()
 
 void ChronoGL::MarkBegin()
 {
-    if( IsQueryResultAvailable() ) { m_prevTimeNanos = GetQueryResultNanos(); }
+    if (IsQueryResultAvailable())
+    {
+        m_prevTimeNanos = GetQueryResultNanos();
+    }
     glBeginQuery(GL_TIME_ELAPSED, m_queryId);
 }
 
@@ -29,7 +28,10 @@ void ChronoGL::MarkEnd()
 
 double ChronoGL::GetEllapsedSeconds() const
 {
-    if (IsQueryResultAvailable()) { m_prevTimeNanos = GetQueryResultNanos(); }
+    if (IsQueryResultAvailable())
+    {
+        m_prevTimeNanos = GetQueryResultNanos();
+    }
     return m_prevTimeNanos;
 }
 

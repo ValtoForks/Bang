@@ -2,35 +2,60 @@
 #define UILIST_H
 
 #include <functional>
+#include <vector>
 
-#include "Bang/Map.h"
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/Color.h"
 #include "Bang/Component.h"
-#include "Bang/IFocusListener.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/GameObject.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsDestroy.h"
+#include "Bang/IEventsFocus.h"
+#include "Bang/IEventsUIList.h"
+#include "Bang/String.h"
+#include "Bang/UITheme.h"
+#include "Bang/UMap.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class UIDirLayout;
-FORWARD class UIScrollArea;
-FORWARD class UIScrollPanel;
-FORWARD class UIImageRenderer;
+namespace Bang
+{
+class UIDirLayout;
+class UIFocusable;
+class UIImageRenderer;
+class UIScrollPanel;
 
 using GOItem = GameObject;
 
 class UIList : public Component,
-               public IFocusListener,
-               public IDestroyListener
+               public EventListener<IEventsFocus>,
+               public EventListener<IEventsDestroy>,
+               public EventEmitter<IEventsUIList>
 {
     COMPONENT(UIList)
 
 public:
-    enum Action { SelectionIn, SelectionOut, MouseOver, MouseOut,
-                  Pressed, DoubleClickedLeft, ClickedLeft, ClickedRight };
-
-    // Component
-    void OnUpdate() override;
+    enum class Action
+    {
+        SELECTION_IN,
+        SELECTION_OUT,
+        MOUSE_OVER,
+        MOUSE_OUT,
+        PRESSED,
+        DOUBLE_CLICKED_LEFT,
+        MOUSE_LEFT_DOWN,
+        MOUSE_LEFT_UP,
+        MOUSE_RIGHT_DOWN
+    };
 
     void AddItem(GOItem *newItem);
     void AddItem(GOItem *newItem, int index);
+    void MoveItem(GOItem *item, int index);
     void RemoveItem(GOItem *item);
     void ClearSelection();
     void Clear();
@@ -38,13 +63,15 @@ public:
     void SetIdleColor(const Color &idleColor);
     void SetOverColor(const Color &overColor);
     void SetSelectedColor(const Color &selectedColor);
-    void SetUseSelectedColor(bool useSelectColor);
 
-    const Array<GOItem*>& GetItems() const;
+    const Array<GOItem *> &GetItems() const;
     GOItem *GetItem(int i) const;
 
+    void SetNotifySelectionOnFullClick(bool notifySelectionOnFullClick);
+    void ScrollToBegin();
     void ScrollTo(int i);
     void ScrollTo(GOItem *item);
+    void ScrollToEnd();
     void SetSelection(int i);
     void SetSelection(GOItem *item);
 
@@ -52,30 +79,41 @@ public:
     UIDirLayout *GetDirLayout() const;
     GameObject *GetContainer() const;
     UIScrollPanel *GetScrollPanel() const;
-    const Color& GetIdleColor() const;
-    const Color& GetOverColor() const;
-    const Color& GetSelectedColor() const;
+    const Color &GetIdleColor() const;
+    const Color &GetOverColor() const;
+    const Color &GetSelectedColor() const;
 
     bool SomeChildHasFocus() const;
     int GetSelectedIndex() const;
-    GOItem* GetSelectedItem() const;
+    GOItem *GetSelectedItem() const;
+    UIFocusable *GetFocusable() const;
 
     void SetWideSelectionMode(bool wideSelectionMode);
 
-    // IDestroyListener
-    virtual void OnDestroyed(EventEmitter<IDestroyListener> *object) override;
+    // IEventsDestroy
+    virtual void OnDestroyed(EventEmitter<IEventsDestroy> *object) override;
 
     using SelectionCallback = std::function<void(GOItem *item, Action action)>;
-    void SetSelectionCallback(SelectionCallback selectionCallback);
+    void SetSelectionCallback(
+        std::function<void(GOItem *item, Action action)> selectionCallback);
+    void ClearSelectionCallback();
 
 protected:
     UIList();
-    virtual ~UIList();
+    virtual ~UIList() override;
+
+    void AddItem_(GOItem *newItem, int index, bool moving);
+    void RemoveItem_(GOItem *item, bool moving);
+
+    UIEventResult OnMouseMove(bool forceColorsUpdate = false,
+                              bool callCallbacks = true);
+    UIImageRenderer *GetItemBg(GOItem *item) const;
 
 private:
-    Array<GOItem*> p_items;
-    Map<GOItem*, UIImageRenderer*> p_itemsBackground;
-    bool m_someChildHasFocus = false;
+    Array<GOItem *> p_items;
+    UIDirLayout *p_dirLayout = nullptr;
+    UIFocusable *p_focusable = nullptr;
+    UMap<GOItem *, UIImageRenderer *> p_itemsBackground;
 
     int m_selectionIndex = -1;
     GOItem *p_itemUnderMouse = nullptr;
@@ -84,25 +122,25 @@ private:
     GameObject *p_container = nullptr;
     UIScrollPanel *p_scrollPanel = nullptr;
 
-    bool m_useSelectColor = true;
-    Color m_idleColor = Color::Zero;
-    Color m_overColor = Color::VeryLightBlue;
-    Color m_selectedColor = Color::LightBlue;
+    Color m_idleColor = Color::Zero();
+    Color m_overColor = UITheme::GetOverColor();
+    Color m_selectedColor = UITheme::GetSelectedColor();
 
     bool m_wideSelectionMode = true;
+    bool m_notifySelectionOnFullClick = false;
 
-    void HandleShortcuts();
+    void SetItemUnderMouse(GOItem *itemUnderMouse, bool callCallbacks);
 
-    // IFocusListener
-    virtual void OnFocusTaken(IFocusable *focusable) override;
-    virtual void OnFocusLost(IFocusable *focusable) override;
+    // IEventsFocus
+    UIEventResult OnUIEvent(UIFocusable *focusable,
+                            const UIEvent &event) override;
+    UIEventResult UIEventCallback(UIFocusable *focusable, const UIEvent &event);
 
-    static UIList* CreateInto(GameObject *go, bool withScrollPanel);
+    static UIList *CreateInto(GameObject *go, bool withScrollPanel);
     void CallSelectionCallback(GameObject *item, Action action);
 
     friend class GameObjectFactory;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // UILIST_H
+#endif  // UILIST_H

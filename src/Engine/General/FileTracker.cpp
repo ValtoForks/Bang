@@ -1,10 +1,24 @@
 #include "Bang/FileTracker.h"
 
-#include "Bang/Time.h"
-#include "Bang/List.h"
-#include "Bang/Debug.h"
+#include <unordered_map>
+#include <utility>
 
-USING_NAMESPACE_BANG
+#include "Bang/Assert.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/Extensions.h"
+#include "Bang/IEventsFileTracker.h"
+#include "Bang/Path.h"
+#include "Bang/Time.h"
+#include "Bang/UMap.h"
+#include "Bang/UMap.tcc"
+#include "Bang/USet.tcc"
+
+namespace Bang
+{
+class String;
+}
+
+using namespace Bang;
 
 FileTracker::FileTracker()
 {
@@ -18,19 +32,25 @@ void FileTracker::TrackPath(const Path &path)
 {
     if (path.IsDir())
     {
-        List<Path> dirSubPaths = path.GetSubPaths(Path::FindFlag::RecursiveHidden);
-        for (const Path &subPath : dirSubPaths) { TrackPath(subPath); }
+        Array<Path> dirSubPaths = path.GetSubPaths(FindFlag::RECURSIVE_HIDDEN);
+        for (const Path &subPath : dirSubPaths)
+        {
+            TrackPath(subPath);
+        }
     }
 
     if (path.Exists())
     {
-        bool wasBeingTracked = (m_pathsToTrackToModificationTime.ContainsKey(path));
-        m_pathsToTrackToModificationTime.Add(path,
-                                             path.GetModificationTimeSeconds());
+        bool wasBeingTracked =
+            (m_pathsToTrackToModificationTime.ContainsKey(path));
+        Time modTime = path.GetModificationTime();
+        m_pathsToTrackToModificationTime.Add(path, modTime);
+        m_trackedPaths.Add(path);
         if (!wasBeingTracked)
         {
-            EventEmitter<IFileTrackerListener>::
-               PropagateToListeners(&IFileTrackerListener::OnPathAdded, path);
+            m_pathsJustRecentlyTracked.Add(path);
+            EventEmitter<IEventsFileTracker>::PropagateToListeners(
+                &IEventsFileTracker::OnPathAdded, path);
         }
     }
 }
@@ -39,77 +59,111 @@ void FileTracker::UnTrackPath(const Path &path)
 {
     if (path.IsDir())
     {
-        List<Path> subpaths = path.GetSubPaths(Path::FindFlag::RecursiveHidden);
+        Array<Path> subpaths = path.GetSubPaths(FindFlag::RECURSIVE_HIDDEN);
         for (const Path &subpath : subpaths)
         {
             UnTrackPath(subpath);
         }
     }
+    m_trackedPaths.Remove(path);
+    m_pathsJustRecentlyTracked.Remove(path);
     m_pathsToTrackToModificationTime.Remove(path);
 }
 
 void FileTracker::Clear()
 {
+    m_trackedPaths.Clear();
+    m_pathsJustRecentlyTracked.Clear();
     m_pathsToTrackToModificationTime.Clear();
 }
 
-void FileTracker::Update(bool forceCheckNow) {
-    if (NeedsCheck() || forceCheckNow)
+void FileTracker::CheckFiles()
+{
+    const UMap<Path, Time> previousPathsToTrack =
+        m_pathsToTrackToModificationTime;
+
+    // Check for removed paths
+    for (const auto &previousPathToModTime : previousPathsToTrack)
     {
-        Map<Path, uint64_t> previousPathsToTrack = m_pathsToTrackToModificationTime;
-
-        // Check for removed paths
-        for (const auto &previousPathToModTime : previousPathsToTrack)
+        const Path &previousPath = previousPathToModTime.first;
+        if (!previousPath.Exists())
         {
-            const Path &previousPath = previousPathToModTime.first;
-            if (!previousPath.Exists())
+            EventEmitter<IEventsFileTracker>::PropagateToListeners(
+                &IEventsFileTracker::OnPathRemoved, previousPath);
+            UnTrackPath(previousPath);
+        }
+    }
+
+    m_pathsJustRecentlyTracked.Clear();  // Clear just tracked paths
+
+    // Check for new paths and add them to track
+    for (const auto &pathToModTime : previousPathsToTrack)
+    {
+        const Path &path = pathToModTime.first;
+        TrackPath(path);
+    }
+
+    // Check for modified paths
+    for (const auto &pathToModTime : m_pathsToTrackToModificationTime)
+    {
+        const Path &path = pathToModTime.first;
+        bool isNewPath = (m_pathsJustRecentlyTracked.Contains(path));
+        if (!isNewPath)
+        {
+            ASSERT(previousPathsToTrack.ContainsKey(path));
+
+            const Time prevModTime = previousPathsToTrack.Get(path);
+            const Time newModTime = path.GetModificationTime();
+            if (newModTime != prevModTime)
             {
-                EventEmitter<IFileTrackerListener>::
-                   PropagateToListeners(&IFileTrackerListener::OnPathRemoved,
-                                        previousPath);
-                UnTrackPath(previousPath);
+                m_pathsToTrackToModificationTime.Add(path, newModTime);
+
+                EventEmitter<IEventsFileTracker>::PropagateToListeners(
+                    &IEventsFileTracker::OnPathModified, path);
             }
         }
-
-        // Check for new paths and add them to track
-        for (const auto &pathToModTime : previousPathsToTrack)
-        {
-            const Path &path = pathToModTime.first;
-            TrackPath(path);
-        }
-
-        // if (m_pathsToTrackToModificationTime.Size() < 10)
-        //     Debug_Peek(m_pathsToTrackToModificationTime);
-
-        // Check for modified paths
-        for (const auto &newPathToModTime : m_pathsToTrackToModificationTime)
-        {
-            const Path &newPath = newPathToModTime.first;
-            double epsilon = GetCheckFrequencySeconds() / 2.0;
-            ASSERT(epsilon < GetCheckFrequencySeconds());
-            if (newPath.GetModificationTimeSeconds() >= m_lastCheckTime - epsilon)
-            {
-                EventEmitter<IFileTrackerListener>::
-                   PropagateToListeners(&IFileTrackerListener::OnPathModified, newPath);
-            }
-        }
-
-        m_lastCheckTime = SCAST<uint64_t>(Time::GetNow_Seconds());
     }
 }
 
-void FileTracker::SetCheckFrequencySeconds(float checkFrequencySeconds)
+Time FileTracker::GetModificationTime(const Path &path) const
 {
-    m_checkFrequencySeconds = checkFrequencySeconds;
+    auto it = m_pathsToTrackToModificationTime.Find(path);
+    if (it != m_pathsToTrackToModificationTime.End())
+    {
+        return it->second;
+    }
+    return Time();
 }
 
-bool FileTracker::NeedsCheck() const
+const USet<Path> &FileTracker::GetTrackedPaths() const
 {
-    float passedSecondsSinceLastCheck = (Time::GetNow_Seconds() - m_lastCheckTime);
-    return (passedSecondsSinceLastCheck > GetCheckFrequencySeconds());
+    return m_trackedPaths;
 }
 
-float FileTracker::GetCheckFrequencySeconds() const
+Array<Path> FileTracker::GetTrackedPathsWithExtensions(
+    const Array<String> &extensions) const
 {
-    return m_checkFrequencySeconds;
+    Array<Path> paths;
+    for (const Path &trackedPath : GetTrackedPaths())
+    {
+        if (Extensions::Equals(trackedPath.GetExtension(), extensions))
+        {
+            paths.PushBack(trackedPath);
+        }
+    }
+    return paths;
+}
+
+Array<Path> FileTracker::GetTrackedPathsWithLastExtension(
+    const Array<String> &extensions) const
+{
+    Array<Path> paths;
+    for (const Path &trackedPath : GetTrackedPaths())
+    {
+        if (Extensions::Equals(trackedPath.GetLastExtension(), extensions))
+        {
+            paths.PushBack(trackedPath);
+        }
+    }
+    return paths;
 }

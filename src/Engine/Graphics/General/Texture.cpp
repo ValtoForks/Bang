@@ -1,20 +1,15 @@
 #include "Bang/Texture.h"
 
+#include <sys/types.h>
+
+#include "Bang/Assert.h"
 #include "Bang/GL.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 Texture::Texture()
 {
     GL::GenTextures(1, &m_idGL);
-    SetFilterMode(GL::FilterMode::Bilinear);
-    SetWrapMode(GL::WrapMode::ClampToEdge);
-    SetFormat(m_glFormat);
-}
-
-Texture::~Texture()
-{
-    GL::DeleteTextures(1, &m_idGL);
 }
 
 Texture::Texture(GL::TextureTarget texTarget) : Texture()
@@ -22,23 +17,45 @@ Texture::Texture(GL::TextureTarget texTarget) : Texture()
     m_target = texTarget;
 }
 
-Texture::Texture(const Texture &t) : GLObject(t)
+Texture::~Texture()
 {
-    m_size = Vector2i(t.GetWidth(), t.GetHeight());
-    m_filterMode = t.m_filterMode;
-    m_wrapMode = t.m_wrapMode;
-    m_glFormat = t.m_glFormat;
-    m_target = t.m_target;
+    GL::DeleteTextures(1, &m_idGL);
 }
 
-void Texture::SetFormat(GL::ColorFormat internalFormat)
+void Texture::GenerateMipMaps() const
 {
-    m_glFormat = internalFormat;
+    GL::Push(GetGLBindTarget());
+
+    Bind();
+    GL::GenerateMipMap(GetTextureTarget());
+
+    GL::Pop(GetGLBindTarget());
+}
+
+void Texture::SetFormat(GL::ColorFormat glFormat)
+{
+    if (glFormat != GetFormat())
+    {
+        m_glFormat = glFormat;
+        OnFormatChanged();
+        PropagateAssetChanged();
+    }
 }
 
 void Texture::SetTarget(GL::TextureTarget target)
 {
-    m_target = target;
+    if (target != GetTextureTarget())
+    {
+        m_target = target;
+        PropagateAssetChanged();
+    }
+}
+
+void Texture::SetWrapMode(GL::WrapMode wrapMode)
+{
+    SetWrapMode(wrapMode, GL::WrapCoord::WRAP_R);
+    SetWrapMode(wrapMode, GL::WrapCoord::WRAP_S);
+    SetWrapMode(wrapMode, GL::WrapCoord::WRAP_T);
 }
 
 void Texture::SetFilterMode(GL::FilterMode filterMode)
@@ -47,64 +64,33 @@ void Texture::SetFilterMode(GL::FilterMode filterMode)
     {
         m_filterMode = filterMode;
 
-        GLId prevBoundTex = GL::GetBoundId(GetGLBindTarget());
+        GL::Push(GetGLBindTarget());
+
         Bind();
 
-        if (GetFilterMode() == GL::FilterMode::Nearest ||
-            GetFilterMode() == GL::FilterMode::Bilinear)
+        if (GetFilterMode() == GL::FilterMode::NEAREST ||
+            GetFilterMode() == GL::FilterMode::BILINEAR)
         {
-            GL::TexParameterFilter(GetTextureTarget(), GL::FilterMagMin::Mag,
-                                   GetFilterMode());
+            GL::TexParameterFilter(
+                GetTextureTarget(), GL::FilterMagMin::MAG, GetFilterMode());
         }
-        GL::TexParameterFilter(GetTextureTarget(), GL::FilterMagMin::Min,
-                               GetFilterMode());
+        GL::TexParameterFilter(
+            GetTextureTarget(), GL::FilterMagMin::MIN, GetFilterMode());
 
-        GL::Bind(GetGLBindTarget(), prevBoundTex);
+        GL::Pop(GetGLBindTarget());
 
-        PropagateTextureChanged();
+        PropagateAssetChanged();
     }
-}
-
-void Texture::SetWrapMode(GL::WrapMode wrapMode)
-{
-    if (wrapMode != GetWrapMode())
-    {
-        m_wrapMode = wrapMode;
-
-        GLId prevBoundTex = GL::GetBoundId(GetGLBindTarget());
-        Bind();
-        GL::TexParameterWrap(GetTextureTarget(), GL::WrapCoord::WrapS, GetWrapMode());
-        GL::TexParameterWrap(GetTextureTarget(), GL::WrapCoord::WrapT, GetWrapMode());
-        GL::TexParameterWrap(GetTextureTarget(), GL::WrapCoord::WrapR, GetWrapMode());
-        GL::Bind(GetGLBindTarget(), prevBoundTex);
-
-        PropagateTextureChanged();
-    }
-}
-
-int Texture::GetWidth() const
-{
-    return m_size.x;
-}
-
-int Texture::GetHeight() const
-{
-    return m_size.y;
-}
-
-const Vector2i &Texture::GetSize() const
-{
-    return m_size;
 }
 
 GL::DataType Texture::GetDataType() const
 {
-    return GL::GetDataTypeFrom( GetFormat() );
+    return GL::GetDataTypeFrom(GetFormat());
 }
 
 GL::ColorComp Texture::GetColorComp() const
 {
-    return GL::GetColorCompFrom( GetFormat() );
+    return GL::GetColorCompFrom(GetFormat());
 }
 
 GL::ColorFormat Texture::GetFormat() const
@@ -112,9 +98,9 @@ GL::ColorFormat Texture::GetFormat() const
     return m_glFormat;
 }
 
-uint Texture::GetBytesSize() const
+GL::FilterMode Texture::GetFilterMode() const
 {
-    return GetWidth() * GetHeight() * GL::GetPixelBytesSize(m_glFormat);
+    return m_filterMode;
 }
 
 GL::TextureTarget Texture::GetTextureTarget() const
@@ -122,40 +108,65 @@ GL::TextureTarget Texture::GetTextureTarget() const
     return m_target;
 }
 
-GL::FilterMode Texture::GetFilterMode() const
+uint GetWrapCoordIndex(GL::WrapCoord wrapCoord)
 {
-    return m_filterMode;
-}
-
-GL::WrapMode Texture::GetWrapMode() const
-{
-    return m_wrapMode;
-}
-
-void Texture::SetWidth(int width)
-{
-    if (width != GetWidth())
+    switch (wrapCoord)
     {
-        m_size.x = width;
-        PropagateTextureChanged();
+        case GL::WrapCoord::WRAP_S: return 0;
+        case GL::WrapCoord::WRAP_T: return 1;
+        case GL::WrapCoord::WRAP_R: return 2;
+    }
+    ASSERT(false);
+    return SCAST<uint>(-1);
+}
+
+void Texture::SetWrapMode(GL::WrapMode wrapMode, GL::WrapCoord wrapCoord)
+{
+    if (wrapMode != GetWrapMode(wrapCoord))
+    {
+        uint idx = GetWrapCoordIndex(wrapCoord);
+        m_wrapMode[idx] = wrapMode;
+
+        GL::Push(GetGLBindTarget());
+
+        Bind();
+        GL::TexParameterWrap(GetTextureTarget(), wrapCoord, wrapMode);
+
+        GL::Pop(GetGLBindTarget());
+
+        PropagateAssetChanged();
     }
 }
-void Texture::SetHeight(int height)
+
+GL::WrapMode Texture::GetWrapMode(Axis3D dim) const
 {
-    if (height != GetHeight())
-    {
-        m_size.y = height;
-        PropagateTextureChanged();
-    }
+    return m_wrapMode[SCAST<uint>(dim)];
 }
 
-GL::BindTarget Texture::GetGLBindTarget() const
+Color Texture::GetColorFromFloatArray(const float *pixels, int i)
 {
-    return GL::BindTarget::Texture2D;
+    return Color(pixels[i + 0], pixels[i + 1], pixels[i + 2], pixels[i + 3]);
 }
 
-void Texture::PropagateTextureChanged()
+Color Texture::GetColorFromByteArray(const Byte *pixels, int i)
 {
-    EventEmitter<ITextureChangedListener>::PropagateToListeners(
-                &ITextureChangedListener::OnTextureChanged, this);
+    return Color(pixels[i + 0] / 255.0f,
+                 pixels[i + 1] / 255.0f,
+                 pixels[i + 2] / 255.0f,
+                 pixels[i + 3] / 255.0f);
+}
+
+void Texture::OnFormatChanged()
+{
+}
+
+int Texture::GetNumComponents() const
+{
+    return GL::GetNumComponents(GetFormat());
+}
+
+GL::WrapMode Texture::GetWrapMode(GL::WrapCoord wrapCoord) const
+{
+    uint idx = GetWrapCoordIndex(wrapCoord);
+    return m_wrapMode[idx];
 }

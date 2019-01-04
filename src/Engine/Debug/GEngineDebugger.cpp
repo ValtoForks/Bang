@@ -1,17 +1,18 @@
 #include "Bang/GEngineDebugger.h"
 
-#include "Bang/Paths.h"
 #include "Bang/File.h"
-#include "Bang/Time.h"
+#include "Bang/GBuffer.h"
 #include "Bang/Input.h"
+#include "Bang/Key.h"
+#include "Bang/Path.h"
+#include "Bang/Time.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 Path GEngineDebugger::c_debugDir = Path("/home/sephirot47/Bang/tmp");
 
 GEngineDebugger::GEngineDebugger()
 {
-
 }
 
 void GEngineDebugger::Reset()
@@ -19,7 +20,7 @@ void GEngineDebugger::Reset()
     if (Input::GetKeyDown(Key::Q))
     {
         File::Remove(GEngineDebugger::c_debugDir);
-        File::CreateDirectory(GEngineDebugger::c_debugDir);
+        File::CreateDir(GEngineDebugger::c_debugDir);
     }
 }
 
@@ -29,10 +30,10 @@ void GEngineDebugger::TakeGBufferShot(GBuffer *gbuffer,
 {
     if (Input::GetKeyDown(Key::Q))
     {
-        String fileName = String::ToString( int(Time::GetNow_Millis()) ) + "_"
-                          + screenshotName;
-        Path filepath = GEngineDebugger::c_debugDir
-                            .Append(fileName).AppendExtension("bmp");
+        String fileName = String::ToString(int(Time::GetNow().GetMillis())) +
+                          "_" + screenshotName;
+        Path filepath =
+            GEngineDebugger::c_debugDir.Append(fileName).AppendExtension("bmp");
         gbuffer->Export(att, filepath, true);
     }
 }

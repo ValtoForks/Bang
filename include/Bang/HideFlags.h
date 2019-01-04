@@ -3,17 +3,17 @@
 
 #include "Bang/Flags.h"
 
-NAMESPACE_BANG_BEGIN
-
-enum HideFlag
+namespace Bang
 {
-    Default,
-    DontSerialize,
-    DontClone
+enum class HideFlag
+{
+    NONE = 0,
+    DONT_SERIALIZE = 1,
+    DONT_CLONE = 2,
+    DEFAULT = HideFlag::NONE
 };
 
 CREATE_FLAGS(HideFlags, HideFlag);
+}
 
-NAMESPACE_BANG_END
-
-#endif // HIDEFLAGS_H
+#endif  // HIDEFLAGS_H

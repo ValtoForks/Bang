@@ -1,20 +1,29 @@
 #include "Bang/SceneManager.h"
 
-#include "Bang/File.h"
-#include "Bang/Debug.h"
-#include "Bang/Paths.h"
-#include "Bang/Scene.h"
-#include "Bang/Camera.h"
-#include "Bang/String.h"
-#include "Bang/Window.h"
-#include "Bang/GBuffer.h"
-#include "Bang/GEngine.h"
-#include "Bang/Extensions.h"
+#include <ostream>
+
+#include "Bang/Assert.h"
 #include "Bang/AudioManager.h"
 #include "Bang/BehaviourManager.h"
+#include "Bang/Camera.h"
+#include "Bang/Color.h"
+#include "Bang/Debug.h"
+#include "Bang/Extensions.h"
+#include "Bang/GBuffer.h"
+#include "Bang/GEngine.h"
+#include "Bang/GL.h"
+#include "Bang/GameObject.h"
 #include "Bang/GameObjectFactory.h"
+#include "Bang/IEventsDestroy.h"
+#include "Bang/IEventsSceneManager.h"
+#include "Bang/List.tcc"
+#include "Bang/Paths.h"
+#include "Bang/Physics.h"
+#include "Bang/Scene.h"
+#include "Bang/StreamOperators.h"
+#include "Bang/Window.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 SceneManager::SceneManager()
 {
@@ -22,7 +31,10 @@ SceneManager::SceneManager()
 
 SceneManager::~SceneManager()
 {
-    if (GetLoadedScene()) { GameObject::Destroy( GetLoadedScene() ); }
+    if (GetLoadedScene())
+    {
+        GameObject::DestroyImmediate(GetLoadedScene());
+    }
     delete m_behaviourManager;
 }
 
@@ -42,27 +54,37 @@ SceneManager *SceneManager::GetActive()
     return win ? win->GetSceneManager() : nullptr;
 }
 
-void SceneManager::OnNewFrame(Scene *scene, bool update)
+Scene *SceneManager::GetObjectPtrLookupScene()
+{
+    SceneManager *sm = SceneManager::GetActive();
+    return sm ? sm->GetObjectPtrLookupScene_() : nullptr;
+}
+
+void SceneManager::OnNewFrame(Scene *scene)
 {
     if (scene)
     {
         scene->PreStart();
         scene->Start();
-        if (update)
-        {
-            scene->PreUpdate();
-            scene->Update();
-            scene->PostUpdate();
-        }
-        scene->DestroyPending();
+
+        scene->Update();
+        Physics::GetInstance()->UpdatePxSceneFromTransforms(scene);
+        Physics::GetInstance()->StepIfNeeded(scene);
+        scene->PostUpdate();
+
+        scene->DestroyDelayedGameObjects();
+        scene->DestroyDelayedComponents();
     }
 }
 
 void SceneManager::Update()
 {
     GetBehaviourManager()->Update();
-    if (GetNextLoadNeeded())  { LoadSceneInstantly_(); }
-    SceneManager::OnNewFrame( GetActiveScene_(), true );
+    if (GetNextLoadNeeded())
+    {
+        LoadSceneInstantly_();
+    }
+    SceneManager::OnNewFrame(GetActiveScene_());
 }
 
 void SceneManager::Render()
@@ -71,15 +93,16 @@ void SceneManager::Render()
     if (activeScene)
     {
         Camera *camera = activeScene->GetCamera();
-        GEngine *ge = GEngine::GetActive();
+        GEngine *ge = GEngine::GetInstance();
         if (camera && ge)
         {
+            camera->SetRenderSize(Window::GetActive()->GetSize());
             ge->Render(activeScene, camera);
-            AARecti prevVP = GL::GetViewportRect();
-            camera->BindViewportForBlitting();
-            ge->RenderTexture(
-                camera->GetGBuffer()->GetAttachmentTexture(GBuffer::AttColor));
-            GL::SetViewport(prevVP);
+            ge->RenderTexture(camera->GetGBuffer()->GetDrawColorTexture());
+        }
+        else
+        {
+            GL::ClearColorBuffer(Color::Black());
         }
     }
 }
@@ -87,7 +110,10 @@ void SceneManager::Render()
 void SceneManager::OnResize(int width, int height)
 {
     Scene *scene = GetActiveScene_();
-    if (scene) { scene->OnResize(width, height); }
+    if (scene)
+    {
+        scene->OnResize(width, height);
+    }
 }
 
 Scene *SceneManager::GetActiveScene()
@@ -95,7 +121,10 @@ Scene *SceneManager::GetActiveScene()
     SceneManager *sm = SceneManager::GetActive();
     return sm ? sm->GetActiveScene_() : nullptr;
 }
-Scene *SceneManager::GetActiveScene_() const { return p_activeScene; }
+Scene *SceneManager::GetActiveScene_() const
+{
+    return p_activeScene;
+}
 Scene *SceneManager::GetLoadedScene() const
 {
     return p_loadedScene;
@@ -108,14 +137,20 @@ void SceneManager::SetSceneVariable(Scene **sceneVar, Scene *sceneValue)
         if (*sceneVar)
         {
             if (GetLoadedScene() != GetActiveScene_())
-            { (*sceneVar)->EventEmitter<IDestroyListener>::UnRegisterListener(this); }
+            {
+                (*sceneVar)->EventEmitter<IEventsDestroy>::UnRegisterListener(
+                    this);
+            }
         }
 
         *sceneVar = sceneValue;
         if (*sceneVar)
         {
             if (GetLoadedScene() != GetActiveScene_())
-            { (*sceneVar)->EventEmitter<IDestroyListener>::RegisterListener(this); }
+            {
+                (*sceneVar)->EventEmitter<IEventsDestroy>::RegisterListener(
+                    this);
+            }
         }
     }
 }
@@ -132,7 +167,7 @@ void SceneManager::SetLoadedScene(Scene *loadedScene)
 void SceneManager::LoadScene(Scene *scene, bool destroyActive)
 {
     SceneManager *sm = SceneManager::GetActive();
-    sm->PrepareNextLoad(scene, Path::Empty, destroyActive);
+    sm->PrepareNextLoad(scene, Path::Empty(), destroyActive);
 }
 void SceneManager::LoadScene(const Path &sceneFilepath, bool destroyActive)
 {
@@ -142,19 +177,26 @@ void SceneManager::LoadScene(const Path &sceneFilepath, bool destroyActive)
     {
         if (!basePath.HasExtension(Extensions::GetSceneExtension()))
         {
-            basePath = basePath.AppendExtension(Extensions::GetSceneExtension());
+            basePath =
+                basePath.AppendExtension(Extensions::GetSceneExtension());
         }
         scenePath = basePath;
 
-        if (!scenePath.IsFile()) { scenePath = EPATH(basePath.GetAbsolute()); }
-        if (!scenePath.IsFile()) { scenePath = PPATH(basePath.GetAbsolute()); }
+        if (!scenePath.IsFile())
+        {
+            scenePath = EPATH(basePath.GetAbsolute());
+            if (!scenePath.IsFile())
+            {
+                scenePath = PPATH(basePath.GetAbsolute());
+            }
+        }
     }
 
     SceneManager *sm = SceneManager::GetActive();
     if (scenePath.IsFile())
     {
         Scene *scene = GameObjectFactory::CreateScene(false);
-        scene->ImportXMLFromFile(sceneFilepath);
+        scene->ImportMetaFromFile(sceneFilepath);
         sm->PrepareNextLoad(scene, sceneFilepath, destroyActive);
     }
     else
@@ -170,7 +212,8 @@ void SceneManager::LoadSceneInstantly(Scene *scene, bool destroyActive)
     SceneManager::LoadScene(scene, destroyActive);
     sm->LoadSceneInstantly_();
 }
-void SceneManager::LoadSceneInstantly(const Path &sceneFilepath, bool destroyActive)
+void SceneManager::LoadSceneInstantly(const Path &sceneFilepath,
+                                      bool destroyActive)
 {
     SceneManager *sm = SceneManager::GetActive();
     SceneManager::LoadScene(sceneFilepath, destroyActive);
@@ -179,71 +222,114 @@ void SceneManager::LoadSceneInstantly(const Path &sceneFilepath, bool destroyAct
 
 void SceneManager::LoadSceneInstantly_()
 {
-    ASSERT( GetNextLoadNeeded() );
+    ASSERT(GetNextLoadNeeded());
 
     // Destroy previous loaded scene
     Scene *prevLoadedScene = GetLoadedScene();
     if (GetNextLoadDestroyPrevious() && prevLoadedScene)
     {
-        GameObject::Destroy(prevLoadedScene);
+        GameObject::DestroyImmediate(prevLoadedScene);
     }
     AudioManager::StopAllSounds();
 
     // Load scene
-    SetLoadedScene( GetNextLoadScene() );
+    SetLoadedScene(GetNextLoadScene());
     Scene *loadedScene = GetLoadedScene();
     if (loadedScene)
     {
-        loadedScene->SetFirstFoundCamera();
         loadedScene->InvalidateCanvas();
     }
-    if (!GetActiveScene_()) { SetActiveScene_(loadedScene); }
+
+    if (!GetActiveScene_())
+    {
+        SetActiveScene_(loadedScene);
+    }
 
     // Propagate loaded event and clear next load variables
-    EventEmitter<ISceneManagerListener>::PropagateToListeners(
-        &ISceneManagerListener::OnSceneLoaded,
-         GetNextLoadScene(), GetNextLoadScenePath());
+    EventEmitter<IEventsSceneManager>::PropagateToListeners(
+        &IEventsSceneManager::OnSceneLoaded,
+        GetNextLoadScene(),
+        GetNextLoadScenePath());
     ClearNextLoad();
 }
 
-List<GameObject*> SceneManager::FindDontDestroyOnLoadGameObjects(GameObject *go)
+List<GameObject *> SceneManager::FindDontDestroyOnLoadGameObjects(
+    GameObject *go)
 {
-    List<GameObject*> result;
+    List<GameObject *> result;
     for (GameObject *child : go->GetChildren())
     {
-        if (child->IsDontDestroyOnLoad()) { result.PushBack(child); }
-        else { result.PushBack(FindDontDestroyOnLoadGameObjects(child)); }
+        if (child->IsDontDestroyOnLoad())
+        {
+            result.PushBack(child);
+        }
+        else
+        {
+            result.PushBack(FindDontDestroyOnLoadGameObjects(child));
+        }
     }
     return result;
 }
 
-void SceneManager::OnDestroyed(EventEmitter<IDestroyListener> *object)
+void SceneManager::OnDestroyed(EventEmitter<IEventsDestroy> *object)
 {
-    if (object == GetNextLoadScene()) { ClearNextLoad(); }
-    if (object == GetLoadedScene())   { p_loadedScene = nullptr; }
-    if (object == GetActiveScene_())  { p_activeScene = nullptr; }
+    if (object == GetNextLoadScene())
+    {
+        ClearNextLoad();
+    }
+    if (object == GetLoadedScene())
+    {
+        p_loadedScene = nullptr;
+    }
+    if (object == GetActiveScene_())
+    {
+        p_activeScene = nullptr;
+    }
 }
 
-bool SceneManager::GetNextLoadNeeded() const { return m_nextLoadNeeded; }
-Scene *SceneManager::GetNextLoadScene() const { return p_nextLoadScene; }
-const Path &SceneManager::GetNextLoadScenePath() const { return m_nextLoadScenePath; }
-bool SceneManager::GetNextLoadDestroyPrevious() const { return m_nextLoadDestroyPrevious; }
+bool SceneManager::GetNextLoadNeeded() const
+{
+    return m_nextLoadNeeded;
+}
+Scene *SceneManager::GetNextLoadScene() const
+{
+    return p_nextLoadScene;
+}
+const Path &SceneManager::GetNextLoadScenePath() const
+{
+    return m_nextLoadScenePath;
+}
+bool SceneManager::GetNextLoadDestroyPrevious() const
+{
+    return m_nextLoadDestroyPrevious;
+}
 
-BehaviourManager *SceneManager::GetBehaviourManager() const { return m_behaviourManager; }
+Scene *SceneManager::GetObjectPtrLookupScene_() const
+{
+    return GetActiveScene_();
+}
+
+BehaviourManager *SceneManager::GetBehaviourManager() const
+{
+    return m_behaviourManager;
+}
 
 void SceneManager::ClearNextLoad()
 {
     m_nextLoadNeeded = false;
     p_nextLoadScene = nullptr;
-    m_nextLoadScenePath = Path::Empty;
+    m_nextLoadScenePath = Path::Empty();
     m_nextLoadDestroyPrevious = false;
 }
 
-void SceneManager::PrepareNextLoad(Scene *scene, const Path &scenePath, bool destroyActive)
+void SceneManager::PrepareNextLoad(Scene *scene,
+                                   const Path &scenePath,
+                                   bool destroyActive)
 {
     if (GetNextLoadScene() && GetNextLoadScene() != GetActiveScene_())
     {
-        GetNextLoadScene()->EventEmitter<IDestroyListener>::UnRegisterListener(this);
+        GetNextLoadScene()->EventEmitter<IEventsDestroy>::UnRegisterListener(
+            this);
     }
 
     m_nextLoadNeeded = true;
@@ -253,6 +339,7 @@ void SceneManager::PrepareNextLoad(Scene *scene, const Path &scenePath, bool des
 
     if (GetNextLoadScene())
     {
-        GetNextLoadScene()->EventEmitter<IDestroyListener>::RegisterListener(this);
+        GetNextLoadScene()->EventEmitter<IEventsDestroy>::RegisterListener(
+            this);
     }
 }

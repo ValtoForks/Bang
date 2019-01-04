@@ -1,32 +1,41 @@
 #include "Bang/UIAutoFocuser.h"
 
+#include "Bang/ClassDB.h"
 #include "Bang/UICanvas.h"
-#include "Bang/IFocusable.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
+
+UIAutoFocuser::UIAutoFocuser()
+{
+    SET_INSTANCE_CLASS_ID(UIAutoFocuser);
+}
 
 void UIAutoFocuser::OnStart()
 {
     Component::OnStart();
-    if (p_focusableToAutoFocus)
+}
+
+void UIAutoFocuser::OnUpdate()
+{
+    Component::OnUpdate();
+
+    if (++m_frames == 2 && p_focusableToAutoFocus)
     {
-        UICanvas *canvas = UICanvas::GetActive( GetGameObject() );
+        UICanvas *canvas = UICanvas::GetActive(GetGameObject());
         if (canvas)
         {
             canvas->SetFocus(p_focusableToAutoFocus);
         }
+        Component::Destroy(this);
     }
-
-    Component::Destroy(this);
 }
 
-void UIAutoFocuser::SetFocusableToAutoFocus(IFocusable *focusable)
+void UIAutoFocuser::SetFocusableToAutoFocus(UIFocusable *focusable)
 {
     p_focusableToAutoFocus = focusable;
 }
 
-IFocusable *UIAutoFocuser::GetFocusableToAutoFocus() const
+UIFocusable *UIAutoFocuser::GetFocusableToAutoFocus() const
 {
     return p_focusableToAutoFocus;
 }
-

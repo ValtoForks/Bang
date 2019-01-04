@@ -1,28 +1,37 @@
 #include "Bang/UIRectMask.h"
 
+#include "Bang/AARect.h"
+#include "Bang/ClassDB.h"
 #include "Bang/GL.h"
-#include "Bang/Rect.h"
-#include "Bang/XMLNode.h"
 #include "Bang/GameObject.h"
+#include "Bang/MetaNode.h"
+#include "Bang/MetaNode.tcc"
+#include "Bang/Rect.h"
 #include "Bang/RectTransform.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
-UIRectMask::UIRectMask() {}
-UIRectMask::~UIRectMask() {}
+UIRectMask::UIRectMask()
+{
+    SET_INSTANCE_CLASS_ID(UIRectMask)
+}
+
+UIRectMask::~UIRectMask()
+{
+}
 
 void UIRectMask::OnBeforeChildrenRender(RenderPass renderPass)
 {
     Component::OnBeforeChildrenRender(renderPass);
 
-    if (IsMasking() && renderPass == RenderPass::Canvas)
+    if (IsMasking() && renderPass == RenderPass::CANVAS)
     {
-        m_wasScissorEnabled = GL::IsEnabled(GL::Test::Scissor);
+        m_wasScissorEnabled = GL::IsEnabled(GL::Enablable::SCISSOR_TEST);
         m_prevScissor = GL::GetScissorRect();
 
-        AARecti rectPx( GetGameObject()->GetRectTransform()->GetViewportRect() );
+        AARecti rectPx(GetGameObject()->GetRectTransform()->GetViewportRect());
 
-        GL::Enable(GL::Test::Scissor);
+        GL::Enable(GL::Enablable::SCISSOR_TEST);
         GL::ScissorIntersecting(rectPx);
     }
 }
@@ -31,28 +40,36 @@ void UIRectMask::OnAfterChildrenRender(RenderPass renderPass)
 {
     Component::OnAfterChildrenRender(renderPass);
 
-    if (IsMasking() && renderPass == RenderPass::Canvas)
+    if (IsMasking() && renderPass == RenderPass::CANVAS)
     {
         // Restore
         GL::Scissor(m_prevScissor);
-        GL::SetEnabled(GL::Test::Scissor, m_wasScissorEnabled);
+        GL::SetEnabled(GL::Enablable::SCISSOR_TEST, m_wasScissorEnabled);
     }
 }
 
-void UIRectMask::SetMasking(bool maskEnabled) { m_masking = maskEnabled; }
-bool UIRectMask::IsMasking() const { return m_masking; }
-
-void UIRectMask::ImportXML(const XMLNode &xmlInfo)
+void UIRectMask::SetMasking(bool maskEnabled)
 {
-    Component::ImportXML(xmlInfo);
-
-    if (xmlInfo.Contains("Masking"))
-    { SetMasking( xmlInfo.Get<bool>("Masking") ); }
+    m_masking = maskEnabled;
+}
+bool UIRectMask::IsMasking() const
+{
+    return m_masking;
 }
 
-void UIRectMask::ExportXML(XMLNode *xmlInfo) const
+void UIRectMask::ImportMeta(const MetaNode &metaNode)
 {
-    Component::ExportXML(xmlInfo);
+    Component::ImportMeta(metaNode);
 
-    xmlInfo->Set("Masking", IsMasking());
+    if (metaNode.Contains("Masking"))
+    {
+        SetMasking(metaNode.Get<bool>("Masking"));
+    }
+}
+
+void UIRectMask::ExportMeta(MetaNode *metaNode) const
+{
+    Component::ExportMeta(metaNode);
+
+    metaNode->Set("Masking", IsMasking());
 }

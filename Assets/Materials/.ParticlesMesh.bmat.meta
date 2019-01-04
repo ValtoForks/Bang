@@ -1,0 +1,17 @@
+Material:
+  Albedo Color: (1, 1, 1, 1)
+  Albedo Texture: 0 0 0
+  Albedo Uv Multiply: (1, 1)
+  Albedo Uv Offset: (0, 0)
+  GUID: 1537967037061785862 10663516764962291713 0
+  Metalness: 0.5
+  Metalness Texture: 0 0 0
+  Needed Uniforms: 511
+  Normal Map Factor: 1
+  Normal Map Uv Multiply: (1, 1)
+  Normal Map Uv Offset: (0, 0)
+  Normal Texture: 0 0 0
+  Receives Lighting: 1
+  Roughness: 0.5
+  Roughness Texture: 0 0 0
+  Shader Program: 1546407267884531445 3968665779980730369 0

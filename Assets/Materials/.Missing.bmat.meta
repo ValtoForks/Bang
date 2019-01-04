@@ -1,0 +1,16 @@
+Material:
+  Albedo Color: (1, 0, 1, 1)
+  Albedo Texture: 0 0 0
+  Albedo Uv Multiply: (1, 1)
+  Albedo Uv Offset: (0, 0)
+  Shader Path: /home/sephirot47/Projects/BangEditor/Bang/Assets/Shaders/Default.bshader
+  GUID: 5352719472153067521 0 0
+  Metalness: 0.5
+  Normal Map Texture: 0 0 0
+  Normal Map Uv Multiply: (1, 1)
+  Normal Map Uv Offset: (0, 0)
+  Receives Lighting: False
+  Render Pass: 0
+  Roughness: 1
+  Children:
+    {}

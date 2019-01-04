@@ -1,0 +1,22 @@
+Material:
+  Albedo Color: (1, 1, 1, 1)
+  Albedo Texture: 0 0 0
+  Albedo Uv Multiply: (1, 1)
+  Albedo Uv Offset: (0, 0)
+  Cull Face: 1029
+  GUID: 1513436630492087117 411580187621276328 0
+  Shader Path: /home/sephirot47/Projects/BangEditor/Bang/Assets/Shaders/Default.bshader
+  Line Width: 1
+  Metalness: 0.5
+  MetalnessTexture: 0 0 0
+  Normal Map Multiply Factor: 1
+  Normal Map Texture: 0 0 0
+  Normal Map Uv Multiply: (1, 1)
+  Normal Map Uv Offset: (0, 0)
+  Receives Lighting: False
+  Render Pass: 4
+  Render Wireframe: False
+  Roughness: 0.5
+  Roughness Texture: 0 0 0
+  Children:
+    {}

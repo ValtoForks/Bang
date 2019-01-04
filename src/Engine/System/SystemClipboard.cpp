@@ -1,8 +1,8 @@
 #include "Bang/SystemClipboard.h"
 
-#include BANG_SDL2_INCLUDE(SDL.h)
+#include <SDL_clipboard.h>
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 void SystemClipboard::Set(const String &str)
 {

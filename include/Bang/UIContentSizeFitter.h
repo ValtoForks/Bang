@@ -1,14 +1,18 @@
 #ifndef UICONTENTSIZEFITTER_H
 #define UICONTENTSIZEFITTER_H
 
+#include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
-#include "Bang/LayoutSizeType.h"
+#include "Bang/ComponentMacros.h"
 #include "Bang/ILayoutSelfController.h"
+#include "Bang/LayoutSizeType.h"
+#include "Bang/MetaNode.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-class UIContentSizeFitter : public Component,
-                            public ILayoutSelfController
+namespace Bang
+{
+class UIContentSizeFitter : public Component, public ILayoutSelfController
 {
     COMPONENT(UIContentSizeFitter)
 
@@ -23,20 +27,19 @@ public:
     virtual void ApplyLayout(Axis axis) override;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
 
     // IInvalidatable
     void OnInvalidated() override;
 
 private:
-    LayoutSizeType m_verticalSizeType   = LayoutSizeType::None;
-    LayoutSizeType m_horizontalSizeType = LayoutSizeType::None;
+    LayoutSizeType m_verticalSizeType = LayoutSizeType::NONE;
+    LayoutSizeType m_horizontalSizeType = LayoutSizeType::NONE;
 
     UIContentSizeFitter();
-    virtual ~UIContentSizeFitter();
+    virtual ~UIContentSizeFitter() override;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UICONTENTSIZEFITTER_H
+#endif  // UICONTENTSIZEFITTER_H

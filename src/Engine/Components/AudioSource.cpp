@@ -1,21 +1,28 @@
 #include "Bang/AudioSource.h"
 
-#include "Bang/Gizmos.h"
-#include "Bang/XMLNode.h"
+#include <AL/al.h>
+#include <vector>
+
+#include "Bang/Array.tcc"
+#include "Bang/Assets.h"
+#include "Bang/Assets.tcc"
 #include "Bang/AudioClip.h"
-#include "Bang/Transform.h"
-#include "Bang/AudioClip.h"
-#include "Bang/Texture2D.h"
-#include "Bang/Resources.h"
+#include "Bang/AudioManager.h"
+#include "Bang/ClassDB.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/Extensions.h"
+#include "Bang/GUID.h"
 #include "Bang/GameObject.h"
 #include "Bang/ICloneable.h"
-#include "Bang/IconManager.h"
-#include "Bang/AudioManager.h"
+#include "Bang/MetaNode.h"
+#include "Bang/MetaNode.tcc"
+#include "Bang/Transform.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 AudioSource::AudioSource()
 {
+    SET_INSTANCE_CLASS_ID(AudioSource)
 }
 
 AudioSource::~AudioSource()
@@ -32,19 +39,6 @@ void AudioSource::OnStart()
     }
 }
 
-void AudioSource::OnRender(RenderPass rp)
-{
-    Component::OnRender(rp);
-    if (rp == RenderPass::Overlay)
-    {
-        Gizmos::Reset();
-        Gizmos::SetSelectable(GetGameObject());
-        Gizmos::SetPosition( GetGameObject()->GetTransform()->GetPosition() );
-        Gizmos::SetScale( Vector3(0.1f) );
-        Gizmos::RenderIcon( IconManager::GetAudioIcon().Get(), true );
-    }
-}
-
 void AudioSource::OnUpdate()
 {
     Component::OnUpdate();
@@ -57,8 +51,7 @@ void AudioSource::OnUpdate()
         }
     }
 
-    Transform *tr = GetGameObject()->GetTransform();
-    if (tr)
+    if (Transform *tr = GetGameObject()->GetTransform())
     {
         ALAudioSource::SetPosition(tr->GetPosition());
     }
@@ -94,8 +87,16 @@ void AudioSource::Play(float delay)
     AudioManager::Play(GetAudioClip(), this, delay);
 }
 
-bool AudioSource::GetPlayOnStart() const { return m_playOnStart; }
-AudioClip *AudioSource::GetAudioClip() const { return p_audioClip.Get(); }
+bool AudioSource::GetPlayOnStart() const
+{
+    return m_playOnStart;
+}
+
+AudioClip *AudioSource::GetAudioClip() const
+{
+    return p_audioClip.Get();
+}
+
 float AudioSource::GetPlayProgress() const
 {
     float secondsOffset;
@@ -104,55 +105,48 @@ float AudioSource::GetPlayProgress() const
     return secondsOffset / GetAudioClip()->GetLength();
 }
 
-void AudioSource::CloneInto(ICloneable *clone) const
+void AudioSource::Reflect()
 {
-    Component::CloneInto(clone);
-    AudioSource *as = Cast<AudioSource*>(clone);
-    as->SetAudioClip( GetAudioClip() );
-    as->SetVolume( GetVolume()  );
-    as->SetPitch( GetPitch() );
-    as->SetRange( GetRange() );
-    as->SetLooping( GetLooping() );
-    as->SetPlayOnStart( GetPlayOnStart() );
-}
+    Component::Reflect();
 
-void AudioSource::ImportXML(const XMLNode &xml)
-{
-    Component::ImportXML(xml);
+    ReflectVar<float>("Volume",
+                      [this](float v) { SetVolume(v); },
+                      [this]() -> float { return GetVolume(); },
+                      BANG_REFLECT_HINT_SLIDER(0.0f, 1.0f));
+    ReflectVar<float>("Pitch",
+                      [this](float p) { SetPitch(p); },
+                      [this]() -> float { return GetPitch(); },
+                      BANG_REFLECT_HINT_MIN_VALUE(0.01f));
+    ReflectVar<float>("Range",
+                      [this](float r) { SetRange(r); },
+                      [this]() -> float { return GetRange(); },
+                      BANG_REFLECT_HINT_MIN_VALUE(0.01f));
+    ReflectVar<bool>("Looping",
+                     [this](bool looping) { SetLooping(looping); },
+                     [this]() -> bool { return GetLooping(); });
+    ReflectVar<bool>("PlayOnStart",
+                     [this](bool playOnStart) { SetPlayOnStart(playOnStart); },
+                     [this]() -> bool { return GetPlayOnStart(); });
 
-    if (xml.Contains("AudioClip"))
-    {
-        RH<AudioClip> audioClip =
-                    Resources::Load<AudioClip>(xml.Get<GUID>("AudioClip"));
-        SetAudioClip(audioClip.Get());
-    }
+    BANG_REFLECT_BUTTON_HINTED(
+        AudioSource,
+        (IsPlaying() ? "Stop" : "Play"),
+        [this]() {
+            if (!IsPlaying())
+            {
+                Play();
+            }
+            else
+            {
+                Stop();
+            }
+        },
+        BANG_REFLECT_HINT_BLOCKED((GetAudioClip() == nullptr)));
 
-    if (xml.Contains("Volume"))
-    { SetVolume(xml.Get<float>("Volume")); }
-
-    if (xml.Contains("Pitch"))
-    { SetPitch(xml.Get<float>("Pitch")); }
-
-    if (xml.Contains("Range"))
-    { SetRange(xml.Get<float>("Range")); }
-
-    if (xml.Contains("Looping"))
-    { SetLooping(xml.Get<bool>("Looping")); }
-
-    if (xml.Contains("PlayOnStart"))
-    { SetPlayOnStart(xml.Get<bool>("PlayOnStart")); }
-}
-
-void AudioSource::ExportXML(XMLNode *xmlInfo) const
-{
-    Component::ExportXML(xmlInfo);
-
-    AudioClip *audioClip = GetAudioClip();
-    GUID audioClipGUID = audioClip ? audioClip->GetGUID() : GUID::Empty();
-    xmlInfo->Set("AudioClip",   audioClipGUID);
-    xmlInfo->Set("Volume",      GetVolume());
-    xmlInfo->Set("Pitch",       GetPitch());
-    xmlInfo->Set("Range",       GetRange());
-    xmlInfo->Set("Looping",     GetLooping());
-    xmlInfo->Set("PlayOnStart", GetPlayOnStart());
+    BANG_REFLECT_VAR_ASSET(
+        "AudioClip",
+        SetAudioClip,
+        GetAudioClip,
+        AudioClip,
+        BANG_REFLECT_HINT_EXTENSIONS(Extensions::GetAudioClipExtensions()));
 }

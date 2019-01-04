@@ -1,19 +1,23 @@
 #ifndef UIRECTMASK_H
 #define UIRECTMASK_H
 
-#include "Bang/GL.h"
-#include "Bang/Array.h"
+#include "Bang/AARect.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/MetaNode.h"
+#include "Bang/RenderPass.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class UIRectMask : public Component
 {
     COMPONENT(UIRectMask)
 
 public:
     UIRectMask();
-    virtual ~UIRectMask();
+    virtual ~UIRectMask() override;
 
     void OnBeforeChildrenRender(RenderPass renderPass) override;
     void OnAfterChildrenRender(RenderPass renderPass) override;
@@ -23,16 +27,15 @@ public:
     bool IsMasking() const;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
 
 private:
     bool m_wasScissorEnabled = false;
-    AARecti m_prevScissor = AARecti::Zero;
+    AARecti m_prevScissor = AARecti::Zero();
 
     bool m_masking = true;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIRECTMASK_H
+#endif  // UIRECTMASK_H

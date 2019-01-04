@@ -1,20 +1,22 @@
 #ifndef IMAGEIODDS_H
 #define IMAGEIODDS_H
 
-#include "Bang/Path.h"
-#include "Bang/Texture2D.h"
+#include "Bang/BangDefines.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class Path;
+class Texture2D;
+class Texture3D;
 
 class ImageIODDS
 {
 public:
-    static void ImportDDS(const Path &filepath, Texture2D *tex, bool *_ok);
+    static void ImportDDS2D(const Path &filepath, Texture2D *tex, bool *_ok);
+    static void ImportDDS3D(const Path &filepath, Texture3D *tex, bool *_ok);
 
     ImageIODDS() = delete;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // IMAGEIODDS_H
-
+#endif  // IMAGEIODDS_H

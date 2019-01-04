@@ -1,23 +1,9 @@
 #include "Bang/Settings.h"
 
 #include "Bang/Application.h"
+#include "Bang/Paths.h"
 
-USING_NAMESPACE_BANG
-
-void Settings::SetAmbientLight(float ambientLight)
-{
-    Settings::GetInstance()->m_ambientLight = ambientLight;
-}
-
-float Settings::GetAmbientLight()
-{
-    return Settings::GetInstance()->m_ambientLight;
-}
-
-Settings *Settings::GetInstance()
-{
-    return Application::GetInstance()->GetSettings();
-}
+using namespace Bang;
 
 Settings::Settings()
 {
@@ -27,3 +13,11 @@ Settings::~Settings()
 {
 }
 
+Settings *Settings::GetInstance()
+{
+    return Application::GetInstance()->GetSettings();
+}
+
+void Settings::Init()
+{
+}

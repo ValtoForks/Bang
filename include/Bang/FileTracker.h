@@ -1,47 +1,48 @@
 #ifndef FILETRACKER_H
 #define FILETRACKER_H
 
-#include "Bang/Map.h"
+#include <vector>
+
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/IEventsFileTracker.h"
 #include "Bang/Path.h"
-#include "Bang/IEventEmitter.h"
+#include "Bang/Time.h"
+#include "Bang/UMap.h"
+#include "Bang/USet.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class Path;
+class String;
 
-class IFileTrackerListener : public IEventListener
+class FileTracker : public EventEmitter<IEventsFileTracker>
 {
 public:
-    virtual void OnPathAdded(const Path &addedPath)       {}
-    virtual void OnPathModified(const Path &modifiedPath) {}
-    virtual void OnPathRemoved(const Path &removedPath)   {}
-};
-
-
-
-class FileTracker : public EventEmitter<IFileTrackerListener>
-{
-public:
-	FileTracker();
-	virtual ~FileTracker();
+    FileTracker();
+    virtual ~FileTracker() override;
 
     void TrackPath(const Path &path);
     void UnTrackPath(const Path &path);
     void Clear();
 
-    void Update(bool forceCheckNow);
+    void CheckFiles();
 
-    void SetCheckFrequencySeconds(float checkFrequencySeconds);
-
-    float GetCheckFrequencySeconds() const;
+    Time GetModificationTime(const Path &path) const;
+    const USet<Path> &GetTrackedPaths() const;
+    Array<Path> GetTrackedPathsWithExtensions(
+        const Array<String> &extensions) const;
+    Array<Path> GetTrackedPathsWithLastExtension(
+        const Array<String> &extensions) const;
 
 private:
-    Map<Path, uint64_t> m_pathsToTrackToModificationTime;
-    float m_checkFrequencySeconds = 5.0f;
-    uint64_t m_lastCheckTime = 0.0;
-
-    bool NeedsCheck() const;
+    USet<Path> m_trackedPaths;
+    USet<Path> m_pathsJustRecentlyTracked;
+    UMap<Path, Time> m_pathsToTrackToModificationTime;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // FILETRACKER_H
-
+#endif  // FILETRACKER_H

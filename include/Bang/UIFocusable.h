@@ -1,30 +1,66 @@
-#ifndef UIFOCUSABLE_H
+﻿#ifndef UIFOCUSABLE_H
 #define UIFOCUSABLE_H
 
+#include <functional>
+#include <vector>
+
+#include "Bang/Array.h"
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
-#include "Bang/IFocusable.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/Cursor.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventListener.tcc"
+#include "Bang/IEventsFocus.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-class UIFocusable : public Component,
-                    public IFocusable
+namespace Bang
 {
-    COMPONENT(UIFocusable);
+class UIFocusable : public Component, public EventEmitter<IEventsFocus>
+{
+    COMPONENT(UIFocusable)
 
-protected:
-    // IFocusable
-    virtual void PropagateFocusToListeners() override;
-    virtual void PropagateMouseOverToListeners(bool mouseOver) override;
+public:
+    using EventCallback =
+        std::function<UIEventResult(UIFocusable *, const UIEvent &)>;
 
-    // Component
-    virtual bool CanBeRepeatedInGameObject() const override;
+    UIEventResult ProcessEvent(const UIEvent &event);
+
+    void SetCursorType(Cursor::Type cursorType);
+    void SetConsiderForTabbing(bool considerForTabbing);
+    void AddEventCallback(UIFocusable::EventCallback eventCallback);
+    void ClearEventCallbacks();
+
+    bool HasFocus() const;
+    bool HasJustFocusChanged() const;
+    bool IsBeingPressed() const;
+    bool IsMouseOver() const;
+    Cursor::Type GetCursorType() const;
+    bool GetConsiderForTabbing() const;
 
 private:
+    bool m_hasFocus = false;
+    bool m_isMouseOver = false;
+    bool m_beingPressed = false;
+    bool m_considerForTabbing = false;
+    Cursor::Type m_cursorType = Cursor::Type::ARROW;
+
+    Array<EventCallback> m_eventCallbacks;
+
     UIFocusable();
-    virtual ~UIFocusable();
+    virtual ~UIFocusable() override;
+
+    // Component
+    bool CanBeRepeatedInGameObject() const override;
+
+    void SetBeingPressed(bool beingPressed);
+    void SetIsMouseOver(bool isMouseOver);
+    void SetFocus();
+    void ClearFocus();
+
+    friend class UICanvas;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIFOCUSABLE_H
-
+#endif  // UIFOCUSABLE_H

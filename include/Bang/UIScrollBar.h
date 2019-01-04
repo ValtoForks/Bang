@@ -1,26 +1,35 @@
 #ifndef UISCROLLBAR_H
 #define UISCROLLBAR_H
 
+#include <vector>
+
 #include "Bang/Alignment.h"
+#include "Bang/Array.tcc"
+#include "Bang/Axis.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
-#include "Bang/IFocusListener.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEvents.h"
+#include "Bang/IEventsFocus.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+class GameObject;
+class UIFocusable;
+class UIImageRenderer;
+class UIScrollArea;
 
-FORWARD class UIFocusable;
-FORWARD class UIScrollArea;
-FORWARD class UIImageRenderer;
-
-class UIScrollBar : public Component,
-                    public IFocusListener
+class UIScrollBar : public Component, public EventListener<IEventsFocus>
 {
     COMPONENT(UIScrollBar)
 
 public:
-	UIScrollBar();
-	virtual ~UIScrollBar();
+    UIScrollBar();
+    virtual ~UIScrollBar() override;
 
-    void OnStart() override;
     void OnUpdate() override;
 
     void SetSide(Side side);
@@ -44,33 +53,34 @@ private:
     int m_thickness = 0;
     int m_scrollingPx = 0;
     bool m_wasGrabbed = false;
-    Vector2 m_grabOffsetPx = Vector2::Zero;
+    Vector2 m_grabOffsetPx = Vector2::Zero();
 
     Side m_side = Undef<Side>();
 
     GameObject *p_bar = nullptr;
-    UIFocusable *p_button = nullptr;
+    UIFocusable *p_barFocusable = nullptr;
     UIImageRenderer *p_barImg = nullptr;
     UIScrollArea *p_scrollArea = nullptr;
+    UIFocusable *p_scrollAreaFocusable = nullptr;
 
-    static UIScrollBar* CreateInto(GameObject *go);
+    static UIScrollBar *CreateInto(GameObject *go);
 
+    void OnMouseEnter();
+    void OnMouseExit();
     void UpdateLengthThicknessMargins();
 
     int GetScrollingSpacePx() const;
     AARect GetScrollingRect() const;
     UIScrollArea *GetScrollArea() const;
-    UIFocusable* GetFocusable() const;
-    GameObject* GetBar() const;
+    UIFocusable *GetFocusable() const;
+    GameObject *GetBar() const;
 
-    // IFocusListener
-    void OnMouseEnter(IFocusable *focusable) override;
-    void OnMouseExit(IFocusable *focusable) override;
+    // IEventsFocus
+    virtual UIEventResult OnUIEvent(UIFocusable *focusable,
+                                    const UIEvent &event) override;
 
     friend class GameObjectFactory;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UISCROLLBAR_H_H
-
+#endif  // UISCROLLBAR_H_H

@@ -1,29 +1,27 @@
 #include "Bang/UILayoutElement.h"
 
-#include "Bang/GameObject.h"
-#include "Bang/UILayoutManager.h"
-#include "Bang/ILayoutController.h"
+#include "Bang/ClassDB.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 UILayoutElement::UILayoutElement()
 {
+    SET_INSTANCE_CLASS_ID(UILayoutElement)
     SetLayoutPriority(1);
 }
 
 UILayoutElement::~UILayoutElement()
 {
-
 }
 
 void UILayoutElement::SetMinWidth(int minWidth)
 {
-    SetMinSize( Vector2i(minWidth, GetMinHeight()) );
+    SetMinSize(Vector2i(minWidth, GetMinHeight()));
 }
 
 void UILayoutElement::SetMinHeight(int minHeight)
 {
-    SetMinSize( Vector2i(GetMinWidth(), minHeight) );
+    SetMinSize(Vector2i(GetMinWidth(), minHeight));
 }
 
 void UILayoutElement::SetMinSize(const Vector2i &minSize)
@@ -36,14 +34,21 @@ void UILayoutElement::SetMinSize(const Vector2i &minSize)
     }
 }
 
+void UILayoutElement::SetMinSizeInAxis(int minMagnitude, Axis axis)
+{
+    Vector2i minSize = GetMinSize();
+    minSize[axis] = minMagnitude;
+    SetMinSize(minSize);
+}
+
 void UILayoutElement::SetPreferredWidth(int preferredWidth)
 {
-    SetPreferredSize( Vector2i(preferredWidth, GetPreferredHeight()) );
+    SetPreferredSize(Vector2i(preferredWidth, GetPreferredHeight()));
 }
 
 void UILayoutElement::SetPreferredHeight(int preferredHeight)
 {
-    SetPreferredSize( Vector2i(GetPreferredWidth(), preferredHeight) );
+    SetPreferredSize(Vector2i(GetPreferredWidth(), preferredHeight));
 }
 
 void UILayoutElement::SetPreferredSize(const Vector2i &preferredSize)
@@ -55,14 +60,21 @@ void UILayoutElement::SetPreferredSize(const Vector2i &preferredSize)
     }
 }
 
+void UILayoutElement::SetPreferredSizeInAxis(int preferredMagnitude, Axis axis)
+{
+    Vector2i preferredSize = GetPreferredSize();
+    preferredSize[axis] = preferredMagnitude;
+    SetPreferredSize(preferredSize);
+}
+
 void UILayoutElement::SetFlexibleWidth(float flexibleWidth)
 {
-    SetFlexibleSize( Vector2(flexibleWidth, GetFlexibleHeight()) );
+    SetFlexibleSize(Vector2(flexibleWidth, GetFlexibleHeight()));
 }
 
 void UILayoutElement::SetFlexibleHeight(float flexibleHeight)
 {
-    SetFlexibleSize( Vector2(GetFlexibleWidth(), flexibleHeight) );
+    SetFlexibleSize(Vector2(GetFlexibleWidth(), flexibleHeight));
 }
 
 void UILayoutElement::SetFlexibleSize(const Vector2 &flexibleSize)
@@ -74,6 +86,12 @@ void UILayoutElement::SetFlexibleSize(const Vector2 &flexibleSize)
     }
 }
 
+void UILayoutElement::SetFlexibleSizeInAxis(float flexibleMagnitude, Axis axis)
+{
+    Vector2 flexibleSize = GetFlexibleSize();
+    flexibleSize[axis] = flexibleMagnitude;
+    SetFlexibleSize(flexibleSize);
+}
 
 int UILayoutElement::GetMinWidth() const
 {
@@ -85,7 +103,7 @@ int UILayoutElement::GetMinHeight() const
     return GetMinSize().y;
 }
 
-const Vector2i& UILayoutElement::GetMinSize() const
+Vector2i UILayoutElement::GetMinSize() const
 {
     return m_minSize;
 }
@@ -122,8 +140,10 @@ Vector2 UILayoutElement::GetFlexibleSize() const
 
 void UILayoutElement::CalculateLayout(Axis axis)
 {
-    SetCalculatedLayout(axis, GetMinSize().GetAxis(axis),
-                        GetPreferredSize().GetAxis(axis));
+    SetCalculatedLayout(axis,
+                        GetMinSize().GetAxis(axis),
+                        GetPreferredSize().GetAxis(axis),
+                        GetFlexibleSize().GetAxis(axis));
 }
 
 void UILayoutElement::OnChanged()

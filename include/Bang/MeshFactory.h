@@ -1,38 +1,49 @@
 #ifndef MESHFACTORY_H
 #define MESHFACTORY_H
 
-#include "Bang/Map.h"
-#include "Bang/Path.h"
-#include "Bang/ResourceHandle.h"
+#include <functional>
 
-NAMESPACE_BANG_BEGIN
+#include "Bang/AssetHandle.h"
+#include "Bang/BangDefines.h"
+#include "Bang/Set.h"
+#include "Bang/String.h"
+
+namespace Bang
+{
+class GUID;
+class Mesh;
+class Model;
+class Path;
 
 class MeshFactory
 {
 public:
-    static RH<Mesh> GetPlane();
-    static RH<Mesh> GetUIPlane();
-    static RH<Mesh> GetUIPlane3x3();
-    static RH<Mesh> GetCube();
-    static RH<Mesh> GetSphere();
-    static RH<Mesh> GetCone();
-    static RH<Mesh> GetCamera();
+    static AH<Mesh> GetPlane();
+    static AH<Mesh> GetUIPlane();
+    static AH<Mesh> GetUIPlaneInvUVY();
+    static AH<Mesh> GetUIPlane3x3();
+    static AH<Mesh> GetUIPlane3x3InvUVY();
+    static AH<Mesh> GetCube();
+    static AH<Mesh> GetCylinder();
+    static AH<Mesh> GetCapsule();
+    static AH<Mesh> GetSphere();
+    static AH<Mesh> GetCone();
+    static AH<Mesh> GetCamera();
+
+    static AH<Mesh> GetMesh(const String &enginePath);
+    static AH<Mesh> GetMesh(const Path &fullPath);
 
 protected:
     MeshFactory() = default;
     virtual ~MeshFactory() = default;
 
-    static RH<Mesh> GetMesh(const String &enginePath);
-    static RH<Mesh> GetMesh(const Path &fullPath);
-
 private:
-    Map<Path, RH<Mesh>> m_cache;
+    Set<AH<Model>> m_modelCache;
 
-    static MeshFactory* GetActive();
+    static MeshFactory *GetActive();
 
-    friend class Resources;
+    friend class Assets;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // MESHFACTORY_H
+#endif  // MESHFACTORY_H

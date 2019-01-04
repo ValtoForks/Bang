@@ -1,30 +1,25 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
+#include "Bang/IReflectable.h"
+#include "Bang/Path.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class Settings
 {
-public:
+protected:
+    Settings();
+    virtual ~Settings();
 
-    static void SetAmbientLight(float ambientLight);
-
-    static float GetAmbientLight();
+    virtual void Init();
 
     static Settings *GetInstance();
 
-private:
-    float m_ambientLight = 0.1f;
-
-	Settings();
-	virtual ~Settings();
-
+protected:
     friend class Application;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // SETTINGS_H
-
+#endif  // SETTINGS_H

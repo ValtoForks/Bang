@@ -1,21 +1,23 @@
 #ifndef UISCROLLAREA_H
 #define UISCROLLAREA_H
 
-#include "Bang/Vector2.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class GameObject;
-FORWARD class UIRectMask;
-FORWARD class UIImageRenderer;
+namespace Bang
+{
+class GameObject;
+class UIImageRenderer;
+class UIRectMask;
 
 class UIScrollArea : public Component
 {
     COMPONENT(UIScrollArea)
 
 public:
-    virtual ~UIScrollArea();
+    virtual ~UIScrollArea() override;
 
     void OnUpdate() override;
 
@@ -25,11 +27,11 @@ public:
 
     void SetContainedGameObject(GameObject *go);
 
-    UIRectMask* GetMask() const;
-    GameObject* GetContainer() const;
-    GameObject* GetContainedGameObject() const;
-    UIImageRenderer* GetBackground() const;
-    const Vector2i& GetScrolling() const;
+    UIRectMask *GetMask() const;
+    GameObject *GetContainer() const;
+    GameObject *GetContainedGameObject() const;
+    UIImageRenderer *GetBackground() const;
+    const Vector2i &GetScrolling() const;
 
 private:
     UIScrollArea();
@@ -39,15 +41,14 @@ private:
     GameObject *p_container = nullptr;
     GameObject *p_containedGo = nullptr;
 
-    Vector2i m_scrollingPx = Vector2i::Zero;
+    Vector2i m_scrollingPx = Vector2i::Zero();
 
     void UpdatePaddings();
 
-    static UIScrollArea* CreateInto(GameObject *go);
+    static UIScrollArea *CreateInto(GameObject *go);
 
     friend class GameObjectFactory;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UISCROLLAREA_H
+#endif  // UISCROLLAREA_H

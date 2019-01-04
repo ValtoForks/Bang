@@ -1,57 +1,64 @@
 #ifndef POSTPROCESSEFFECT_H
 #define POSTPROCESSEFFECT_H
 
+#include "Bang/AssetHandle.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
-#include "Bang/ResourceHandle.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/MetaNode.h"
+#include "Bang/Path.h"
+#include "Bang/RenderPass.h"
+#include "Bang/Shader.h"
+#include "Bang/ShaderProgram.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Shader;
-FORWARD class ShaderProgram;
+namespace Bang
+{
+class ICloneable;
 
 class PostProcessEffect : public Component
 {
     COMPONENT(PostProcessEffect)
 
 public:
-    enum class Type { AfterScene = 0, AfterCanvas };
+    enum class Type
+    {
+        AFTER_SCENE = 0,
+        AFTER_SCENE_AND_LIGHT,
+        AFTER_CANVAS
+    };
 
     PostProcessEffect();
-    virtual ~PostProcessEffect();
+    virtual ~PostProcessEffect() = default;
 
     // Component
     virtual void OnRender(RenderPass renderPass) override;
 
     void SetType(Type type);
     void SetPriority(int priority);
-    void SetPostProcessShader(Shader* postProcessShader);
+    void SetPostProcessShader(Shader *postProcessShader);
 
     Type GetType() const;
     int GetPriority() const;
-    ShaderProgram* GetPostProcessShaderProgram() const;
-    Shader* GetPostProcessShader() const;
+    ShaderProgram *GetPostProcessShaderProgram() const;
+    Shader *GetPostProcessShader() const;
     Path GetPostProcessShaderFilepath() const;
 
-    // ICloneable
-    virtual void CloneInto(ICloneable *clone) const override;
+    // IReflectable
+    virtual void Reflect() override;
 
-    // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
-
-    friend bool operator<(const PostProcessEffect& lhs,
-                          const PostProcessEffect& rhs);
+    friend bool operator<(const PostProcessEffect &lhs,
+                          const PostProcessEffect &rhs);
 
 protected:
     bool MustBeRendered(RenderPass renderPass) const;
 
 private:
-    RH<ShaderProgram> p_shaderProgram;
-    RH<Shader> p_postProcessShader;
-    Type m_type = Type::AfterScene;
+    AH<ShaderProgram> p_shaderProgram;
+    AH<Shader> p_postProcessShader;
+    Type m_type = Type::AFTER_SCENE;
     int m_priority = 0;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // POSTPROCESSEFFECT_H
+#endif  // POSTPROCESSEFFECT_H

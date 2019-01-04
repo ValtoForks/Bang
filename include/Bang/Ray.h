@@ -1,18 +1,15 @@
 #ifndef RAY_H
 #define RAY_H
 
-#include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Vector3.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class Plane;
-FORWARD class Sphere;
-
+namespace Bang
+{
 class Ray
 {
 public:
-	Ray();
+    Ray();
     Ray(const Vector3 &origin, const Vector3 &direction);
     ~Ray();
 
@@ -22,15 +19,15 @@ public:
     // Gets a point along the ray with distance t to the ray origin
     Vector3 GetPoint(float t) const;
 
-    const Vector3& GetOrigin() const;
-    const Vector3& GetDirection() const;
+    const Vector3 &GetOrigin() const;
+    const Vector3 &GetDirection() const;
 
 private:
-    Vector3 m_origin = Vector3::Zero;
-    Vector3 m_direction = Vector3::Forward;
+    Vector3 m_origin = Vector3::Zero();
+    Vector3 m_direction = Vector3::Forward();
 };
 
-NAMESPACE_BANG_END
+Ray operator*(const Matrix4 &m, const Ray &ray);
+}
 
-#endif // RAY_H
-
+#endif  // RAY_H

@@ -1,24 +1,28 @@
 #include "Bang/Cursor.h"
 
-#include "Bang/Map.h"
+#include "Bang/UMap.h"
+#include "Bang/UMap.tcc"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
-Cursor::Type Cursor::s_type = Cursor::Type::Arrow;
+Cursor::Type Cursor::s_type = Cursor::Type::ARROW;
 
 void Cursor::Set(Cursor::Type cursorType)
 {
-    Cursor::s_type = cursorType;
-
-    Map<Cursor::Type, SDL_Cursor*> createdCursors;
-    if ( !createdCursors.ContainsKey(Cursor::Get()) )
+    if (cursorType != Cursor::s_type)
     {
-        SDL_Cursor* cursor = SDL_CreateSystemCursor(
-                                    SCAST<SDL_SystemCursor>(Cursor::Get()) );
-        createdCursors.Add(Cursor::Get(), cursor);
-    }
+        Cursor::s_type = cursorType;
 
-    SDL_SetCursor( createdCursors.Get(Cursor::Get()) );
+        static UMap<Cursor::Type, SDL_Cursor *, EnumClassHash> createdCursors;
+        if (!createdCursors.ContainsKey(Cursor::Get()))
+        {
+            SDL_Cursor *cursor =
+                SDL_CreateSystemCursor(SCAST<SDL_SystemCursor>(Cursor::Get()));
+            createdCursors.Add(Cursor::Get(), cursor);
+        }
+
+        SDL_SetCursor(createdCursors.Get(Cursor::Get()));
+    }
 }
 
 Cursor::Type Cursor::Get()

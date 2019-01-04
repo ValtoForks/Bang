@@ -3,58 +3,142 @@
 
 #include "Bang/Bang.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+using FlagsPrimitiveType = uint32_t;
 
 template <class Flag>
 class Flags
 {
 public:
-    Flags() { }
-    Flags(int flagsOn)  { m_flags = Flag::None; SetOn(flagsOn); }
-    Flags(Flag flagsOn) { m_flags = Flag::None; SetOn(flagsOn); }
-
-    void SetOn(int f)  { m_flags = m_flags | f; }
-    void SetOn(Flag f) { SetOn(static_cast<int>(f)); }
-
-    void SetOff(int f)  { m_flags = m_flags & ~f; }
-    void SetOff(Flag f) { SetOff(static_cast<int>(f)); }
-
-    bool IsOn(int f)  const { return (m_flags & f) > 0; }
-    bool IsOn(Flag f) const { return IsOn(static_cast<int>(f)); }
-    bool IsOff(int f)  const { return !IsOn(f); }
-    bool IsOff(Flag f) const { return !IsOn(f); }
-
-    inline Flags operator|(Flag f)
+    Flags()
     {
-        return Flags(m_flags | f);
     }
 
-    inline Flags operator~()
+    Flags(FlagsPrimitiveType flagsOn)
     {
-        return Flags(~m_flags);
+        m_flags = SCAST<FlagsPrimitiveType>(Flag::NONE);
+        SetOn(flagsOn);
     }
 
-    inline Flags operator&(Flag f)
+    Flags(Flag flagsOn)
     {
-        return Flags(m_flags & f);
+        m_flags = SCAST<FlagsPrimitiveType>(Flag::NONE);
+        SetOn(flagsOn);
     }
 
-    inline Flags operator^(Flag f)
+    void Clear()
     {
-        return Flags(m_flags ^ f);
+        m_flags = 0;
     }
 
-    int ToInteger() const
+    Flags &SetTo(FlagsPrimitiveType f)
+    {
+        m_flags = f;
+        return *this;
+    }
+
+    Flags &SetOn(FlagsPrimitiveType f)
+    {
+        m_flags = GetValue() | f;
+        return *this;
+    }
+    Flags &SetOn(Flag f)
+    {
+        return SetOn(SCAST<FlagsPrimitiveType>(f));
+    }
+
+    Flags &SetOff(FlagsPrimitiveType f)
+    {
+        m_flags = GetValue() & ~f;
+        return *this;
+    }
+    Flags &SetOff(Flag f)
+    {
+        return SetOff(static_cast<FlagsPrimitiveType>(f));
+    }
+
+    bool IsOn(FlagsPrimitiveType f) const
+    {
+        return (GetValue() & f) > 0;
+    }
+    bool IsOn(Flag f) const
+    {
+        return IsOn(SCAST<FlagsPrimitiveType>(f));
+    }
+
+    bool IsOff(FlagsPrimitiveType f) const
+    {
+        return !IsOn(f);
+    }
+    bool IsOff(Flag f) const
+    {
+        return !IsOn(f);
+    }
+
+    explicit inline operator FlagsPrimitiveType() const
+    {
+        return SCAST<FlagsPrimitiveType>(GetValue());
+    }
+
+    inline Flags operator|(Flag f) const
+    {
+        return Flags(GetValue() | f);
+    }
+
+    inline Flags operator~() const
+    {
+        return Flags(~GetValue());
+    }
+
+    inline Flags operator&(Flag f) const
+    {
+        return Flags(GetValue() & f);
+    }
+
+    inline Flags operator^(Flag f) const
+    {
+        return Flags(GetValue() ^ f);
+    }
+
+    inline bool operator==(const Flags &rhs) const
+    {
+        return SCAST<FlagsPrimitiveType>(GetValue()) ==
+               SCAST<FlagsPrimitiveType>(rhs.GetValue());
+    }
+
+    inline bool operator!=(const Flags &rhs) const
+    {
+        return !(*this == rhs);
+    }
+
+    FlagsPrimitiveType GetValue() const
     {
         return m_flags;
     }
 
 private:
-    int m_flags = Flag::Default;
+    FlagsPrimitiveType m_flags = SCAST<FlagsPrimitiveType>(Flag::DEFAULT);
 };
 
-#define CREATE_FLAGS(FlagsName, FlagType) using FlagsName = Flags<FlagType>
+#define CREATE_FLAGS(FlagsName, FlagType)                       \
+    inline FlagType operator|(FlagType lhs, FlagType rhs)       \
+    {                                                           \
+        return SCAST<FlagType>(SCAST<FlagsPrimitiveType>(lhs) | \
+                               SCAST<FlagsPrimitiveType>(rhs)); \
+    }                                                           \
+                                                                \
+    inline FlagType operator^(FlagType lhs, FlagType rhs)       \
+    {                                                           \
+        return SCAST<FlagType>(SCAST<FlagsPrimitiveType>(lhs) ^ \
+                               SCAST<FlagsPrimitiveType>(rhs)); \
+    }                                                           \
+                                                                \
+    inline FlagType operator~(FlagType f)                       \
+    {                                                           \
+        return SCAST<FlagType>(~SCAST<FlagsPrimitiveType>(f));  \
+    }                                                           \
+    using FlagsName = Flags<FlagType>
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // FLAGS_H
+#endif  // FLAGS_H

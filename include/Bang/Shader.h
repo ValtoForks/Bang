@@ -1,39 +1,48 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include <GL/glew.h>
-
-#include "Bang/Path.h"
-#include "Bang/String.h"
-#include "Bang/Resource.h"
+#include "Bang/Asset.h"
+#include "Bang/BangDefines.h"
+#include "Bang/GL.h"
 #include "Bang/GLObject.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-class Shader : public GLObject,
-               public Resource
+namespace Bang
 {
-    RESOURCE(Shader)
+class Path;
+
+class Shader : public GLObject, public Asset
+{
+    ASSET(Shader)
 
 public:
     Shader();
     Shader(GL::ShaderType t);
+    virtual ~Shader() override;
 
+    void SetSourceCode(const String &sourceCode);
+    void SetType(GL::ShaderType type);
+    bool CompileIfNeeded();
+    bool Compile();
+
+    void DeleteShader();
+    bool IsCompiled() const;
+    const String &GetSourceCode() const;
+    const String &GetPreprocessedSourceCode() const;
+    GL::ShaderType GetType() const;
     GL::BindTarget GetGLBindTarget() const override;
 
-    const String& GetSourceCode() const;
-    GL::ShaderType GetType() const;
-
-    // Resource
+    // Asset
     virtual void Import(const Path &shaderFilepath) override;
 
 private:
-    GL::ShaderType m_type;
+    bool m_compiled = false;
     String m_sourceCode = "";
+    String m_preprocessedSourceCode = "";
+    GL::ShaderType m_type = Undef<GL::ShaderType>();
 
-    void RetrieveType(const Path &shaderPath);
+    void CommitShaderSourceCode();
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // SHADER_H
+#endif  // SHADER_H

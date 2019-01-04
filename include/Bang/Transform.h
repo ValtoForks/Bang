@@ -1,41 +1,66 @@
 #ifndef TRANSFORM_H
 #define TRANSFORM_H
 
-#include "Bang/Vector3.h"
-#include "Bang/Matrix4.h"
+#include <vector>
+
+#include "Bang/Array.tcc"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
-#include "Bang/Quaternion.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/EventEmitter.h"
+#include "Bang/EventEmitter.tcc"
+#include "Bang/EventListener.h"
+#include "Bang/IEventsChildren.h"
+#include "Bang/IEventsTransform.h"
 #include "Bang/IInvalidatable.h"
-#include "Bang/IChildrenListener.h"
-#include "Bang/ITransformListener.h"
+#include "Bang/Matrix4.h"
+#include "Bang/MetaNode.h"
+#include "Bang/String.h"
+#include "Bang/Transformation.h"
 
-NAMESPACE_BANG_BEGIN
-
-class IInvalidatableTransformWorld : public IInvalidatable<IInvalidatableTransformWorld>
+namespace Bang
 {
-public: void OnInvalidated() override { OnInvalidatedWorld(); }
-        virtual void OnInvalidatedWorld() = 0;
+class GameObject;
+class ICloneable;
+
+class IInvalidatableTransformWorld
+    : public IInvalidatable<IInvalidatableTransformWorld>
+{
+public:
+    void OnInvalidated() override
+    {
+        OnInvalidatedWorld();
+    }
+    virtual void OnInvalidatedWorld() = 0;
 };
-class IInvalidatableTransformLocal : public IInvalidatable<IInvalidatableTransformLocal>
+class IInvalidatableTransformLocal
+    : public IInvalidatable<IInvalidatableTransformLocal>
 {
-public: void OnInvalidated() override { OnInvalidatedLocal(); }
-        virtual void OnInvalidatedLocal() = 0;
+public:
+    void OnInvalidated() override
+    {
+        OnInvalidatedLocal();
+    }
+    virtual void OnInvalidatedLocal() = 0;
 };
 
 class Transform : public Component,
                   public IInvalidatableTransformWorld,
                   public IInvalidatableTransformLocal,
-                  public ITransformListener,
-                  public IChildrenListener,
-                  public EventEmitter<ITransformListener>
+                  public EventListener<IEventsTransform>,
+                  public EventListener<IEventsChildren>,
+                  public EventEmitter<IEventsTransform>
 {
     COMPONENT(Transform)
 
 public:
-    void LookAt(const Vector3 &target, const Vector3 &up = Vector3::Up);
-    void LookAt(Transform *targetTransform, const Vector3 &up = Vector3::Up);
-    void LookAt(GameObject *target, const Vector3 &up = Vector3::Up);
-    void LookInDirection(const Vector3 &dir, const Vector3 &up = Vector3::Up);
+    void LookAt(const Vector3 &target, const Vector3 &up = Vector3::Up());
+    void LookAt(Transform *targetTransform, const Vector3 &up = Vector3::Up());
+    void LookAt(GameObject *target, const Vector3 &up = Vector3::Up());
+    void LookInDirection(const Vector3 &dir, const Vector3 &up = Vector3::Up());
+
+    void FillFromMatrix(const Matrix4 &transformMatrix);
+    void FillFromTransformation(const Transformation &transformation);
 
     void SetLocalPosition(const Vector3 &p);
     void SetPosition(const Vector3 &p);
@@ -60,13 +85,6 @@ public:
     void SetLocalScale(float s);
     void SetLocalScale(const Vector3 &s);
 
-    Vector3 TransformPoint(const Vector3 &point) const;
-    Vector3 InverseTransformPoint(const Vector3 &point) const;
-    Vector3 TransformDirection(const Vector3 &dir) const;
-    Vector3 InverseTransformDirection(const Vector3 &dir) const;
-    Vector3 TransformVector(const Vector3 &vector) const;
-    Vector3 InverseTransformVector(const Vector3 &vector) const;
-
     Vector3 FromLocalToWorldPoint(const Vector3 &point) const;
     Vector3 FromLocalToWorldVector(const Vector3 &vector) const;
     Vector3 FromLocalToWorldDirection(const Vector3 &dir) const;
@@ -74,10 +92,10 @@ public:
     Vector3 FromWorldToLocalVector(const Vector3 &vector) const;
     Vector3 FromWorldToLocalDirection(const Vector3 &dir) const;
 
-    virtual const Matrix4& GetLocalToParentMatrix() const;
-    virtual const Matrix4& GetLocalToParentMatrixInv() const;
-    virtual const Matrix4& GetLocalToWorldMatrix() const;
-    virtual const Matrix4& GetLocalToWorldMatrixInv() const;
+    virtual const Matrix4 &GetLocalToParentMatrix() const;
+    virtual const Matrix4 &GetParentToLocalMatrix() const;
+    virtual const Matrix4 &GetLocalToWorldMatrix() const;
+    virtual const Matrix4 &GetWorldToLocalMatrix() const;
 
     Vector3 GetForward() const;
     Vector3 GetBack() const;
@@ -86,44 +104,38 @@ public:
     Vector3 GetUp() const;
     Vector3 GetDown() const;
 
-    const Vector3& GetLocalPosition() const;
+    const Vector3 &GetLocalPosition() const;
     Vector3 GetPosition() const;
-    const Quaternion& GetLocalRotation() const;
+    const Quaternion &GetLocalRotation() const;
     Quaternion GetRotation() const;
-    Vector3 GetLocalEuler() const;
+    const Vector3 &GetLocalEuler() const;
     Vector3 GetEuler() const;
-    const Vector3& GetLocalScale() const;
+    const Vector3 &GetLocalScale() const;
     Vector3 GetScale() const;
 
-    static Vector3    GetPositionFromMatrix4(const Matrix4 &transformMatrix);
-    static Quaternion GetRotationFromMatrix4(const Matrix4 &transformMatrix);
-    static Vector3    GetScaleFromMatrix4   (const Matrix4 &transformMatrix);
+    const Transformation &GetLocalTransformation() const;
 
-    // IChildrenListener
+    // IEventsChildren
     void OnParentChanged(GameObject *oldParent, GameObject *newParent) override;
 
-    // ITransformListener
+    // IEventsTransform
     void OnTransformChanged() override;
     void OnParentTransformChanged() override;
     void OnChildrenTransformChanged() override;
 
-    // ICloneable
-    virtual void CloneInto(ICloneable *clone) const override;
-
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void Reflect() override;
 
     virtual void InvalidateTransform();
 
 protected:
-    mutable Matrix4 m_localToWorldMatrix;
-    mutable Matrix4 m_localToWorldMatrixInv;
     mutable Matrix4 m_localToParentMatrix;
-    mutable Matrix4 m_localToParentMatrixInv;
+    mutable Matrix4 m_parentToLocalMatrix;
+    mutable Matrix4 m_localToWorldMatrix;
+    mutable Matrix4 m_worldToLocalMatrix;
 
     Transform();
-    virtual ~Transform();
+    virtual ~Transform() override;
 
     // IInvalidatable
     void OnInvalidatedWorld() override;
@@ -138,17 +150,13 @@ protected:
     virtual bool CanBeRepeatedInGameObject() const override;
 
 private:
-    Vector3    m_localPosition               = Vector3::Zero;
-    Quaternion m_localRotation               = Quaternion::Identity;
-    Vector3    m_localEulerAnglesDegreesHint = Vector3::Zero;
-    Vector3    m_localScale                  = Vector3::One;
+    Transformation m_localTransformation;
+    Vector3 m_localEulerAnglesDegreesHint = Vector3::Zero();
 
+    mutable bool m_alreadyNotifiedChildrenThatTransformHasChanged = false;
 
     void PropagateParentTransformChangedEventToChildren() const;
-    void PropagateChildrenTransformChangedEventToParent() const;
-
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // TRANSFORM_H
+#endif  // TRANSFORM_H

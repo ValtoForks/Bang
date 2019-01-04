@@ -1,11 +1,12 @@
 #ifndef FPSCHRONO_H
 #define FPSCHRONO_H
 
+#include "Bang/BangDefines.h"
 #include "Bang/List.h"
-#include "Bang/ChronoGL.h"
+#include "Bang/Time.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class FPSChrono
 {
 public:
@@ -17,17 +18,16 @@ public:
 
     void SetMeanSamples(int meanSamples);
 
+    double GetLastTimeSeconds() const;
     double GetMeanFPS() const;
     double GetMeanSeconds() const;
     int GetMeanSamples() const;
 
 private:
-    List<double> m_latestDeltaTimes;
-    double m_beginTimeSeconds = 0.0;
-    int m_meanSamples = 30;
+    List<Time> m_latestDeltaTimes;
+    Time m_beginTime;
+    int m_meanSamples = 100;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // FPSCHRONO_H
-
+#endif  // FPSCHRONO_H

@@ -2,18 +2,26 @@
 
 #include "Bang/GL.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
-GLObject::GLObject() {}
+GLObject::GLObject()
+{
+}
 
 GLId GLObject::GetGLId() const
 {
     return m_idGL;
 }
 
-GL::BindTarget GLObject::GetGLBindTarget() const
+void GLObject::Bind()
 {
-    return GL::BindTarget::None;
+    const GLObject *constThis = this;
+    constThis->Bind();
+}
+void GLObject::UnBind()
+{
+    const GLObject *constThis = this;
+    constThis->UnBind();
 }
 
 void GLObject::Bind() const

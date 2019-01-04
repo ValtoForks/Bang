@@ -1,33 +1,36 @@
 #ifndef UITEXTCURSOR_H
 #define UITEXTCURSOR_H
 
+#include "Bang/BangDefines.h"
+#include "Bang/ComponentMacros.h"
 #include "Bang/LineRenderer.h"
+#include "Bang/String.h"
+#include "Bang/Time.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class UITextCursor : public LineRenderer
 {
     COMPONENT(UITextCursor)
 
 public:
     UITextCursor();
-    virtual ~UITextCursor();
+    virtual ~UITextCursor() override;
 
     virtual void OnUpdate() override;
 
     void ResetTickTime();
 
     void SetStroke(float cursorWidth);
-    void SetTickTime(float cursorTickTime);
+    void SetTickTime(Time cursorTickTime);
 
     float GetStroke() const;
-    float GetTickTime() const;
+    Time GetTickTime() const;
 
 private:
-    float m_cursorTime = 0.0f;
-    float m_cursorTickTime = 0.5f;
+    Time m_cursorTime;
+    Time m_cursorTickTime;
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UITEXTCURSOR_H
+#endif  // UITEXTCURSOR_H

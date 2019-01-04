@@ -3,10 +3,10 @@
 
 #include <mutex>
 
-#include "Bang/Bang.h"
+#include "Bang/BangDefines.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class Mutex
 {
 public:
@@ -17,10 +17,12 @@ public:
     bool TryLock();
     void UnLock();
 
+    bool IsLocked() const;
+
 private:
+    bool m_isLocked = false;
     std::mutex m_mutex;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // MUTEX_H
+#endif  // MUTEX_H

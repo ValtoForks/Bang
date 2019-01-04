@@ -1,16 +1,26 @@
 #include "Bang/UIAspectRatioFitter.h"
 
-#include "Bang/Rect.h"
-#include "Bang/AARect.h"
-#include "Bang/XMLNode.h"
+#include "Bang/ClassDB.h"
 #include "Bang/GameObject.h"
+#include "Bang/IInvalidatable.h"
+#include "Bang/Math.h"
+#include "Bang/MetaNode.h"
+#include "Bang/MetaNode.tcc"
 #include "Bang/RectTransform.h"
+#include "Bang/StreamOperators.h"
+#include "Bang/Vector2.h"
 
-USING_NAMESPACE_BANG
+namespace Bang
+{
+class ILayoutController;
+}
+
+using namespace Bang;
 
 UIAspectRatioFitter::UIAspectRatioFitter()
 {
-    SetAspectRatioMode(AspectRatioMode::Keep);
+    SET_INSTANCE_CLASS_ID(UIAspectRatioFitter);
+    SetAspectRatioMode(AspectRatioMode::KEEP);
 }
 
 UIAspectRatioFitter::~UIAspectRatioFitter()
@@ -28,12 +38,52 @@ void UIAspectRatioFitter::SetAspectRatio(float aspectRatio)
 
 void UIAspectRatioFitter::SetAspectRatio(const Vector2 &size)
 {
-    SetAspectRatio( size.x / Math::Max(size.y, 1.0f) );
+    SetAspectRatio(size.x / Math::Max(size.y, 1.0f));
 }
 
 void UIAspectRatioFitter::SetAspectRatio(const Vector2i &size)
 {
-    SetAspectRatio( Vector2(size) );
+    SetAspectRatio(Vector2(size));
+}
+
+void UIAspectRatioFitter::SetPaddings(int paddingsAll)
+{
+    SetPaddings(Vector2i(paddingsAll), Vector2i(paddingsAll));
+}
+
+void UIAspectRatioFitter::SetPaddings(const Vector2i &paddingLeftBot,
+                                      const Vector2i &paddingRightTop)
+{
+    SetPaddingLeftBot(paddingLeftBot);
+    SetPaddingRightTop(paddingRightTop);
+}
+
+void UIAspectRatioFitter::SetPaddingLeftBot(const Vector2i &paddingLeftBot)
+{
+    if (paddingLeftBot != GetPaddingLeftBot())
+    {
+        m_paddingLeftBot = paddingLeftBot;
+        Invalidate();
+    }
+}
+
+void UIAspectRatioFitter::SetPaddingRightTop(const Vector2i &paddingRightTop)
+{
+    if (paddingRightTop != GetPaddingRightTop())
+    {
+        m_paddingRightTop = paddingRightTop;
+        Invalidate();
+    }
+}
+
+const Vector2i &UIAspectRatioFitter::GetPaddingLeftBot() const
+{
+    return m_paddingLeftBot;
+}
+
+const Vector2i &UIAspectRatioFitter::GetPaddingRightTop() const
+{
+    return m_paddingRightTop;
 }
 
 float UIAspectRatioFitter::GetAspectRatio() const
@@ -58,45 +108,72 @@ AspectRatioMode UIAspectRatioFitter::GetAspectRatioMode() const
 void UIAspectRatioFitter::ApplyLayout(Axis axis)
 {
     RectTransform *rt = GetGameObject()->GetRectTransform();
-    if (!rt) { return; }
+    if (!rt)
+    {
+        return;
+    }
 
     GameObject *parent = GetGameObject()->GetParent();
-    if (!parent) { return; }
+    if (!parent)
+    {
+        return;
+    }
 
     RectTransform *parentRT = parent->GetRectTransform();
-    if (!parentRT) { return; }
+    if (!parentRT)
+    {
+        return;
+    }
 
-    const Vector2i parentSize = Vector2i::Max(Vector2i::One,
-                                   Vector2i(parentRT->GetViewportRect().GetSize()));
+    const Vector2i parentRTSize = Vector2i::Max(
+        Vector2i::One(), Vector2i(parentRT->GetViewportAARect().GetSize()));
 
-    Vector2i currentSize( Vector2::Round( Vector2(GetAspectRatio(), 1) * 30000.0f ) );
-    Vector2i newSize = AspectRatio::GetAspectRatioedSize(currentSize,
-                                                         parentSize,
-                                                         GetAspectRatioMode());
-    if (axis == Axis::Vertical)
+    Vector2i currentSize(
+        Vector2::Round(Vector2(GetAspectRatio(), 1) * 30000.0f));
+    Vector2i newSize = AspectRatio::GetAspectRatioedSize(
+        currentSize, parentRTSize, GetAspectRatioMode());
+    newSize -= (GetPaddingLeftBot() + GetPaddingRightTop());
+
+    if (axis == Axis::VERTICAL)
     {
         rt->SetWidthFromPivot(newSize.x);
         rt->SetHeightFromPivot(newSize.y);
     }
 }
 
-void UIAspectRatioFitter::ImportXML(const XMLNode &xmlInfo)
+void UIAspectRatioFitter::ImportMeta(const MetaNode &metaNode)
 {
-    Component::ImportXML(xmlInfo);
+    Component::ImportMeta(metaNode);
 
-    if (xmlInfo.Contains("AspectRatio"))
-    { SetAspectRatio(xmlInfo.Get<float>("AspectRatio")); }
+    if (metaNode.Contains("AspectRatio"))
+    {
+        SetAspectRatio(metaNode.Get<float>("AspectRatio"));
+    }
 
-    if (xmlInfo.Contains("AspectRatioMode"))
-    { SetAspectRatioMode(xmlInfo.Get<AspectRatioMode>("AspectRatioMode")); }
+    if (metaNode.Contains("AspectRatioMode"))
+    {
+        SetAspectRatioMode(metaNode.Get<AspectRatioMode>("AspectRatioMode"));
+    }
+
+    if (metaNode.Contains("PaddingLeftTop"))
+    {
+        SetPaddingLeftBot(metaNode.Get<Vector2i>("PaddingLeftTop"));
+    }
+
+    if (metaNode.Contains("PaddingRightBot"))
+    {
+        SetPaddingRightTop(metaNode.Get<Vector2i>("PaddingRightBot"));
+    }
 }
 
-void UIAspectRatioFitter::ExportXML(XMLNode *xmlInfo) const
+void UIAspectRatioFitter::ExportMeta(MetaNode *metaNode) const
 {
-    Component::ExportXML(xmlInfo);
+    Component::ExportMeta(metaNode);
 
-    xmlInfo->Set("AspectRatio", GetAspectRatio());
-    xmlInfo->Set("AspectRatioMode", GetAspectRatioMode());
+    metaNode->Set("AspectRatio", GetAspectRatio());
+    metaNode->Set("AspectRatioMode", GetAspectRatioMode());
+    metaNode->Set("PaddingLeftBot", GetPaddingLeftBot());
+    metaNode->Set("PaddingRightTop", GetPaddingRightTop());
 }
 
 void UIAspectRatioFitter::OnTransformChanged()

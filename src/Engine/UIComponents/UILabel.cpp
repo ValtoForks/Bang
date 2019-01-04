@@ -1,81 +1,95 @@
 #include "Bang/UILabel.h"
 
-#include "Bang/Font.h"
-#include "Bang/Input.h"
+#include "Bang/AARect.h"
+#include "Bang/Alignment.h"
+#include "Bang/Array.h"
+#include "Bang/ClassDB.h"
 #include "Bang/Cursor.h"
-#include "Bang/UICanvas.h"
+#include "Bang/DPtr.tcc"
+#include "Bang/EventEmitter.h"
 #include "Bang/GameObject.h"
-#include "Bang/UIRectMask.h"
-#include "Bang/RectTransform.h"
-#include "Bang/UITextRenderer.h"
-#include "Bang/SystemClipboard.h"
-#include "Bang/UILayoutElement.h"
-#include "Bang/UIImageRenderer.h"
-#include "Bang/UIVerticalLayout.h"
+#include "Bang/GameObject.tcc"
 #include "Bang/GameObjectFactory.h"
+#include "Bang/Input.h"
+#include "Bang/Key.h"
+#include "Bang/Math.h"
+#include "Bang/MouseButton.h"
+#include "Bang/RectTransform.h"
+#include "Bang/Stretch.h"
+#include "Bang/SystemClipboard.h"
+#include "Bang/UIFocusable.h"
 #include "Bang/UIHorizontalLayout.h"
+#include "Bang/UIImageRenderer.h"
+#include "Bang/UILayoutElement.h"
+#include "Bang/UIRectMask.h"
+#include "Bang/UITextRenderer.h"
+#include "Bang/UITheme.h"
+#include "Bang/Vector2.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 UILabel::UILabel()
 {
+    SET_INSTANCE_CLASS_ID(UILabel)
+
+    ResetSelection();
     SetSelectable(false);
-    SetFocusable(this);
-    SetFocusEnabled(false);
+    SetSelectAllOnFocus(true);
 }
 
 UILabel::~UILabel()
 {
 }
 
-void UILabel::OnStart()
-{
-    Component::OnStart();
-
-    ResetSelection();
-    SetSelectAllOnFocus(true);
-    UpdateSelectionQuadRenderer();
-}
-
 void UILabel::OnUpdate()
 {
     Component::OnUpdate();
 
-    if (UICanvas::GetActive(this)->HasFocusFocusable( GetFocusable() ))
+    if (p_layoutElement && GetText())
     {
-        if (IsSelectable())
-        {
-            if (!GetFocusable()->HasJustFocusChanged())
-            {
-                if (Input::GetMouseButtonDown(MouseButton::Left))
-                {
-                    m_firstSelectAll = false;
-                }
-                if (!m_firstSelectAll) { HandleMouseSelection(); }
-            }
-            HandleClipboardCopy();
-        }
-        else
-        {
-            ResetSelection();
-        }
+        p_layoutElement->SetMinWidth(GetText()->GetPreferredSize().x);
+        p_layoutElement->SetPreferredSize(GetText()->GetPreferredSize());
+    }
 
-        if (Input::GetMouseButtonUp(MouseButton::Left))
+    if (GetFocusable() && GetFocusable()->HasFocus())
+    {
+        if (m_selectingWithMouse)
         {
-            m_selectingWithMouse = false;
+            HandleMouseSelection();
         }
+    }
+}
 
+void UILabel::SetCursorIndex(int index)
+{
+    if (index != GetCursorIndex())
+    {
+        m_cursorIndex = index;
+        UpdateSelectionQuadRenderer();
+    }
+}
+void UILabel::SetSelectionIndex(int index)
+{
+    if (index != GetSelectionIndex())
+    {
+        m_selectionIndex = index;
         UpdateSelectionQuadRenderer();
     }
 }
 
-void UILabel::SetCursorIndex(int index) { m_cursorIndex = index; }
-void UILabel::SetSelectionIndex(int index) { m_selectionIndex = index; }
-
 void UILabel::SetSelectable(bool selectable)
 {
     m_selectable = selectable;
-    if (p_selectionQuad) { p_selectionQuad->SetEnabled(selectable); }
+    if (GetFocusable())
+    {
+        GetFocusable()->SetCursorType(selectable ? Cursor::Type::IBEAM
+                                                 : Cursor::Type::ARROW);
+    }
+
+    if (p_selectionQuad)
+    {
+        p_selectionQuad->SetEnabled(selectable);
+    }
 }
 void UILabel::SetSelection(int cursorIndex, int selectionIndex)
 {
@@ -85,25 +99,30 @@ void UILabel::SetSelection(int cursorIndex, int selectionIndex)
 
 String UILabel::GetSelectedText() const
 {
-    if (GetCursorIndex() == GetSelectionIndex()) { return ""; }
-    if (GetSelectionBeginIndex() >= GetSelectionEndIndex()) { return ""; }
-    return GetText()->GetContent().SubString(GetSelectionBeginIndex(),
-                                             GetSelectionEndIndex()-1);
+    if (GetText())
+    {
+        if (GetCursorIndex() == GetSelectionIndex() ||
+            GetSelectionBeginIndex() >= GetSelectionEndIndex())
+        {
+            return "";
+        }
+        return GetText()->GetContent().SubString(GetSelectionBeginIndex(),
+                                                 GetSelectionEndIndex() - 1);
+    }
+    return "";
 }
 void UILabel::ResetSelection()
 {
-    SetSelectionIndex( GetCursorIndex() );
-    UpdateSelectionQuadRenderer();
+    SetSelectionIndex(GetCursorIndex());
 }
 void UILabel::SelectAll()
 {
-    SetSelection(0, GetText()->GetContent().Size());
+    SetSelection(SCAST<int>(GetText()->GetContent().Size()), 0);
 }
 void UILabel::SetSelectAllOnFocus(bool selectAllOnFocus)
 {
     m_selectAllOnFocusTaken = selectAllOnFocus;
 }
-
 
 bool UILabel::IsSelectable() const
 {
@@ -122,42 +141,68 @@ int UILabel::GetSelectionEndIndex() const
 
 float UILabel::GetCursorXViewportNDC(int cursorIndex) const
 {
-    return GetTextParentRT()->FromLocalPointNDCToViewportPointNDC(
-                            Vector2(GetCursorXLocalNDC(cursorIndex), 0) ).x;
+    if (GetText())
+    {
+        return GetTextParentRT()
+            ->FromLocalPointNDCToViewportPointNDC(
+                Vector2(GetCursorXLocalNDC(cursorIndex), 0))
+            .x;
+    }
+    return 0.0f;
 }
 
 float UILabel::GetCursorXLocalNDC(int cursorIndex) const
 {
+    if (!GetText())
+    {
+        return 0.0f;
+    }
+
     float localTextX = 0.0f;
     const int textLength = GetText()->GetContent().Size();
-    if (cursorIndex > 0 && cursorIndex < textLength) // Between two chars
+    if (cursorIndex > 0 && cursorIndex < textLength)  // Between two chars
     {
-        AARect currentCharRect = GetText()->GetCharRectLocalNDC(cursorIndex - 1);
+        AARect currentCharRect =
+            GetText()->GetCharRectLocalNDC(cursorIndex - 1);
         AARect nextCharRect = GetText()->GetCharRectLocalNDC(cursorIndex);
-        if (GetText()->GetContent()[cursorIndex-1] != ' ')
+        if (GetText()->GetContent()[cursorIndex - 1] != ' ')
         {
-            localTextX = (currentCharRect.GetMax().x + nextCharRect.GetMin().x) / 2.0f;
+            localTextX =
+                (currentCharRect.GetMax().x + nextCharRect.GetMin().x) / 2.0f;
         }
-        else { localTextX = nextCharRect.GetMin().x; }
+        else
+        {
+            localTextX = nextCharRect.GetMin().x;
+        }
     }
-    else if (!GetText()->GetCharRectsLocalNDC().IsEmpty()) // Begin or end
+    else if (!GetText()->GetCharRectsLocalNDC().IsEmpty())  // Begin or end
     {
-        localTextX = (cursorIndex == 0 ?
-                      GetText()->GetCharRectsLocalNDC().Front().GetMin().x :
-                      GetText()->GetCharRectsLocalNDC().Back() .GetMax().x);
+        localTextX =
+            (cursorIndex == 0
+                 ? GetText()->GetCharRectsLocalNDC().Front().GetMin().x
+                 : GetText()->GetCharRectsLocalNDC().Back().GetMax().x);
     }
-    else
+    else  // Is empty
     {
         HorizontalAlignment hAlign = GetText()->GetHorizontalAlignment();
-        if (hAlign == HorizontalAlignment::Left)   { return -1; }
-        if (hAlign == HorizontalAlignment::Center) { return  0; }
-        if (hAlign == HorizontalAlignment::Right)  { return  1; }
+        if (hAlign == HorizontalAlignment::LEFT)
+        {
+            return -1;
+        }
+        if (hAlign == HorizontalAlignment::CENTER)
+        {
+            return 0;
+        }
+        if (hAlign == HorizontalAlignment::RIGHT)
+        {
+            return 1;
+        }
     }
 
     return Vector2(localTextX, 0).x;
 }
 
-bool UILabel::IsSelectAllOnFocus() const
+bool UILabel::GetSelectAllOnFocus() const
 {
     return m_selectAllOnFocusTaken;
 }
@@ -166,7 +211,7 @@ int UILabel::GetClosestCharIndexTo(const Vector2 &coordsLocalNDC)
 {
     int closestCharIndex = 0;
     float minDist = Math::Infinity<float>();
-    const Array<AARect>& charRectsNDC = GetText()->GetCharRectsLocalNDC();
+    const Array<AARect> &charRectsNDC = GetText()->GetCharRectsLocalNDC();
     for (uint i = 0; i < charRectsNDC.Size(); ++i)
     {
         const AARect &cr = charRectsNDC[i];
@@ -187,99 +232,153 @@ int UILabel::GetClosestCharIndexTo(const Vector2 &coordsLocalNDC)
     return closestCharIndex;
 }
 
-int UILabel::GetCursorIndex() const { return m_cursorIndex; }
-int UILabel::GetSelectionIndex() const { return m_selectionIndex; }
-bool UILabel::IsSelectingWithMouse() const { return m_selectingWithMouse; }
-
-UIRectMask *UILabel::GetMask() const { return p_mask; }
-UITextRenderer *UILabel::GetText() const { return p_text; }
-IFocusable *UILabel::GetFocusable() const { return p_focusable; }
-
-void UILabel::SetFocusable(IFocusable *focusable)
+int UILabel::GetCursorIndex() const
 {
-    if (GetFocusable())
-    { GetFocusable()->EventEmitter<IFocusListener>::UnRegisterListener(this); }
+    return m_cursorIndex;
+}
 
-    p_focusable = focusable;
-    if (GetFocusable() != this) { this->SetFocusEnabled(false); }
+int UILabel::GetSelectionIndex() const
+{
+    return m_selectionIndex;
+}
 
-    if (GetFocusable())
+bool UILabel::IsSelectingWithMouse() const
+{
+    return m_selectingWithMouse;
+}
+
+UIRectMask *UILabel::GetMask() const
+{
+    return p_mask;
+}
+
+UITextRenderer *UILabel::GetText() const
+{
+    return p_text;
+}
+
+UIFocusable *UILabel::GetFocusable() const
+{
+    return p_focusable;
+}
+
+UIEventResult UILabel::OnUIEvent(UIFocusable *, const UIEvent &event)
+{
+    switch (event.type)
     {
-        GetFocusable()->EventEmitter<IFocusListener>::RegisterListener(this);
-        GetFocusable()->SetCursorType( Cursor::Type::IBeam );
+        case UIEvent::Type::KEY_DOWN:
+            if (event.key.modifiers.IsOn(KeyModifier::LCTRL))
+            {
+                if (event.key.key == Key::C)
+                {
+                    String selectedText = GetSelectedText();
+                    SystemClipboard::Set(selectedText);
+                    return UIEventResult::INTERCEPT;
+                }
+            }
+            break;
+
+        case UIEvent::Type::FOCUS_TAKEN:
+        case UIEvent::Type::MOUSE_CLICK_DOUBLE:
+            if (GetFocusable() && GetFocusable()->IsEnabledRecursively())
+            {
+                if (GetSelectAllOnFocus() && IsSelectable())
+                {
+                    SelectAll();
+                }
+                else
+                {
+                    ResetSelection();
+                }
+                UpdateSelectionQuadRenderer();
+
+                return UIEventResult::INTERCEPT;
+            }
+            break;
+
+        case UIEvent::Type::FOCUS_LOST:
+        {
+            ResetSelection();
+            m_selectingWithMouse = false;
+            UpdateSelectionQuadRenderer();
+
+            return UIEventResult::INTERCEPT;
+        }
+        break;
+
+        case UIEvent::Type::MOUSE_CLICK_DOWN:
+        {
+            if (GetFocusable() && GetFocusable()->HasFocus() &&
+                GetFocusable()->IsEnabledRecursively())
+            {
+                if (IsSelectable())
+                {
+                    HandleMouseSelection();
+                    m_selectingWithMouse = true;
+                }
+                else
+                {
+                    ResetSelection();
+                }
+                UpdateSelectionQuadRenderer();
+
+                return UIEventResult::INTERCEPT;
+            }
+        }
+        break;
+
+        case UIEvent::Type::MOUSE_CLICK_UP:
+        {
+            m_selectingWithMouse = false;
+            UpdateSelectionQuadRenderer();
+
+            return UIEventResult::INTERCEPT;
+        }
+        break;
+
+        default: break;
     }
+
+    return UIEventResult::IGNORE;
 }
-
-void UILabel::OnFocusTaken(IFocusable *focusable)
-{
-    IFocusListener::OnFocusTaken(focusable);
-
-    if (IsSelectAllOnFocus() && IsSelectable())
-    {
-        m_firstSelectAll = true;
-        SelectAll();
-    }
-    else { ResetSelection(); }
-
-    UpdateSelectionQuadRenderer();
-}
-
-void UILabel::OnFocusLost(IFocusable *focusable)
-{
-    IFocusListener::OnFocusLost(focusable);
-
-    ResetSelection();
-    UpdateSelectionQuadRenderer();
-    m_selectingWithMouse = false;
-}
-
 
 RectTransform *UILabel::GetTextParentRT() const
 {
+    if (!GetText())
+    {
+        return nullptr;
+    }
     return GetText()->GetGameObject()->GetParent()->GetRectTransform();
 }
 bool UILabel::IsShiftPressed() const
 {
-    return Input::GetKey(Key::LShift) || Input::GetKey(Key::RShift);
-}
-
-void UILabel::HandleClipboardCopy()
-{
-    if ( (Input::GetKey(Key::LCtrl) || Input::GetKey(Key::RCtrl)) )
-    {
-        String selectedText = GetSelectedText();
-        if ( Input::GetKeyDown(Key::C) && selectedText.Size() > 0 )
-        {
-            SystemClipboard::Set( selectedText );
-        }
-    }
+    return Input::GetKey(Key::LSHIFT) || Input::GetKey(Key::RSHIFT);
 }
 
 void UILabel::HandleMouseSelection()
 {
-    if (Input::GetMouseButtonDown(MouseButton::Left))
-    {
-        m_selectingWithMouse = true;
-    }
-
     // Find the closest visible char bounds to the mouse position
-    if (Input::GetMouseButton(MouseButton::Left))
+    if (Input::GetMouseButton(MouseButton::LEFT))
     {
         Vector2 mouseCoordsLocalNDC = Input::GetMousePositionNDC();
-        mouseCoordsLocalNDC = GetTextParentRT()->FromViewportPointNDCToLocalPointNDC(
-                                            Vector2(mouseCoordsLocalNDC) );
+        mouseCoordsLocalNDC =
+            GetTextParentRT()->FromViewportPointNDCToLocalPointNDC(
+                Vector2(mouseCoordsLocalNDC));
         int closestCharIndex = GetClosestCharIndexTo(mouseCoordsLocalNDC);
         SetCursorIndex(closestCharIndex);
 
         // Move the selection index accordingly
-        if (!IsShiftPressed() && Input::GetMouseButtonDown(MouseButton::Left))
+        if (!IsShiftPressed() && Input::GetMouseButtonDown(MouseButton::LEFT))
         {
             ResetSelection();
         }
-        if (!IsSelectingWithMouse()) { ResetSelection(); }
+        if (!IsSelectingWithMouse())
+        {
+            ResetSelection();
+        }
     }
 
-    if (Input::GetMouseButtonDoubleClick(MouseButton::Left))
+    if (Input::GetMouseButtonDoubleClick(MouseButton::LEFT))
     {
         SelectAll();
     }
@@ -287,19 +386,23 @@ void UILabel::HandleMouseSelection()
 
 void UILabel::UpdateSelectionQuadRenderer()
 {
-    float cursorX     = GetCursorXViewportNDC( GetCursorIndex() );
-    float selectionX  = GetCursorXViewportNDC( GetSelectionIndex() );
+    if (GetText() && p_selectionQuad)
+    {
+        GetText()->RegenerateCharQuadsVAO();
+        float cursorX = GetCursorXViewportNDC(GetCursorIndex());
+        float selectionX = GetCursorXViewportNDC(GetSelectionIndex());
 
-    AARect r ( GetGameObject()->GetRectTransform()->GetViewportAARectNDC() );
-    Vector2 p1(Math::Min(cursorX, selectionX), r.GetMin().y );
-    Vector2 p2(Math::Max(cursorX, selectionX), r.GetMax().y );
+        AARect r(GetGameObject()->GetRectTransform()->GetViewportAARectNDC());
+        Vector2 p1(Math::Min(cursorX, selectionX), r.GetMin().y);
+        Vector2 p2(Math::Max(cursorX, selectionX), r.GetMax().y);
 
-    RectTransform *textParentRT = GetTextParentRT();
-    p1 = textParentRT->FromViewportPointNDCToLocalPointNDC(p1);
-    p2 = textParentRT->FromViewportPointNDCToLocalPointNDC(p2);
+        RectTransform *textParentRT = GetTextParentRT();
+        p1 = textParentRT->FromViewportPointNDCToLocalPointNDC(p1);
+        p2 = textParentRT->FromViewportPointNDCToLocalPointNDC(p2);
 
-    RectTransform *quadRT = p_selectionQuad->GetRectTransform();
-    quadRT->SetAnchors( Vector2::Min(p1, p2), Vector2::Max(p1, p2) );
+        RectTransform *quadRT = p_selectionQuad->GetRectTransform();
+        quadRT->SetAnchors(Vector2::Min(p1, p2), Vector2::Max(p1, p2));
+    }
 }
 
 UILabel *UILabel::CreateInto(GameObject *go)
@@ -309,12 +412,12 @@ UILabel *UILabel::CreateInto(GameObject *go)
     UILabel *label = go->AddComponent<UILabel>();
 
     UIHorizontalLayout *hl = go->AddComponent<UIHorizontalLayout>();
-    hl->SetChildrenVerticalAlignment(VerticalAlignment::Center);
-    hl->SetChildrenVerticalStretch(Stretch::Full);
-    hl->SetChildrenHorizontalStretch(Stretch::Full);
+    hl->SetChildrenVerticalAlignment(VerticalAlignment::CENTER);
+    hl->SetChildrenVerticalStretch(Stretch::FULL);
+    hl->SetChildrenHorizontalStretch(Stretch::FULL);
 
-    UILayoutElement *le = go->AddComponent<UILayoutElement>();
-    le->SetFlexibleSize( Vector2::One );
+    label->p_layoutElement = go->AddComponent<UILayoutElement>();
+    label->p_layoutElement->SetFlexibleSize(Vector2::One());
 
     UIRectMask *mask = go->AddComponent<UIRectMask>();
     label->p_mask = mask;
@@ -322,15 +425,20 @@ UILabel *UILabel::CreateInto(GameObject *go)
 
     GameObject *textGO = GameObjectFactory::CreateUIGameObject();
     UITextRenderer *text = textGO->AddComponent<UITextRenderer>();
-    text->SetVerticalAlign(VerticalAlignment::Center);
+    text->SetVerticalAlign(VerticalAlignment::CENTER);
     text->SetTextSize(12);
     text->SetWrapping(false);
 
     GameObject *selectionQuadGo = GameObjectFactory::CreateUIGameObject();
-    UIImageRenderer *selectionQuad = selectionQuadGo->AddComponent<UIImageRenderer>();
-    selectionQuad->SetTint(Color::LightBlue);
+    UIImageRenderer *selectionQuad =
+        selectionQuadGo->AddComponent<UIImageRenderer>();
+    selectionQuad->SetTint(UITheme::GetSelectionTextColor());
+
+    UIFocusable *focusable = go->AddComponent<UIFocusable>();
+    focusable->EventEmitter<IEventsFocus>::RegisterListener(label);
 
     label->p_text = text;
+    label->p_focusable = focusable;
     label->p_selectionQuad = selectionQuadGo;
 
     selectionQuadGo->SetParent(go);
@@ -341,4 +449,3 @@ UILabel *UILabel::CreateInto(GameObject *go)
 
     return label;
 }
-

@@ -3,12 +3,15 @@
 
 #include "Bang/ILayoutController.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class ILayoutSelfController : public ILayoutController
 {
+    bool IsSelfController() const override
+    {
+        return true;
+    }
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // ILAYOUTSELFCONTROLLER_H
+#endif  // ILAYOUTSELFCONTROLLER_H

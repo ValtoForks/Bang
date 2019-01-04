@@ -1,10 +1,13 @@
 #include "Bang/Polygon.h"
 
+#include "Bang/Array.tcc"
+#include "Bang/Assert.h"
 #include "Bang/Plane.h"
-#include "Bang/Triangle.h"
 #include "Bang/Polygon2D.h"
+#include "Bang/Triangle.h"
+#include "Bang/Vector2.h"
 
-USING_NAMESPACE_BANG
+using namespace Bang;
 
 void Polygon::AddPoint(const Vector3 &p)
 {
@@ -13,18 +16,21 @@ void Polygon::AddPoint(const Vector3 &p)
 
 void Polygon::AddPoints(const Array<Vector3> &points)
 {
-    for (const Vector3 &p : points) { AddPoint(p); }
+    for (const Vector3 &p : points)
+    {
+        AddPoint(p);
+    }
 }
 
 void Polygon::SetPoint(int i, const Vector3 &p)
 {
-    ASSERT(i >= 0 && i < GetPoints().Size());
+    ASSERT(i >= 0 && i < SCAST<int>(GetPoints().Size()));
     m_points[i] = p;
 }
 
 Plane Polygon::GetPlane() const
 {
-    ASSERT(GetPoints().Size() >= 3);
+    ASSERT(GetPoints().Size() >= 3u);
     return Triangle(GetPoint(0), GetPoint(1), GetPoint(2)).GetPlane();
 }
 
@@ -37,7 +43,7 @@ Vector3 Polygon::GetNormal() const
 Polygon2D Polygon::ProjectedOnAxis(Axis3D axis) const
 {
     Polygon2D projectedPoly;
-    for (int i = 0; i < GetPoints().Size(); ++i)
+    for (uint i = 0; i < GetPoints().Size(); ++i)
     {
         Vector3 p = GetPoint(i);
         Vector2 projP = p.ProjectedOnAxis(axis);
@@ -48,7 +54,7 @@ Polygon2D Polygon::ProjectedOnAxis(Axis3D axis) const
 
 const Vector3 &Polygon::GetPoint(int i) const
 {
-    ASSERT(i >= 0 && i < GetPoints().Size());
+    ASSERT(i >= 0 && i < SCAST<int>(GetPoints().Size()));
     return GetPoints()[i];
 }
 
@@ -64,6 +70,5 @@ Vector3 &Polygon::operator[](std::size_t i)
 
 const Vector3 &Polygon::operator[](std::size_t i) const
 {
-    return GetPoint(i);
+    return GetPoint(SCAST<int>(i));
 }
-

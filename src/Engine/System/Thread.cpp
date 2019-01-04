@@ -1,11 +1,13 @@
 #include "Bang/Thread.h"
 
-#include <pthread.h>
+#include <chrono>
+#include <ostream>
+#include <ratio>
 
 #include "Bang/Debug.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 int ThreadFunc(ThreadRunnable *runnable, Thread *thread);
 
 Thread::Thread()
@@ -17,8 +19,8 @@ Thread::Thread(ThreadRunnable *runnable) : Thread()
     SetRunnable(runnable);
 }
 
-Thread::Thread(ThreadRunnable *runnable,
-               const String &threadName) : Thread(runnable)
+Thread::Thread(ThreadRunnable *runnable, const String &threadName)
+    : Thread(runnable)
 {
     SetName(threadName);
 }
@@ -33,7 +35,10 @@ void Thread::Start()
     {
         m_thread = std::thread(ThreadFunc, p_runnable, this);
     }
-    else { Debug_Error("Trying to start Thread with no ThreadRunnable set."); }
+    else
+    {
+        Debug_Error("Trying to start Thread with no ThreadRunnable set.");
+    }
 }
 
 void Thread::Join()
@@ -56,7 +61,6 @@ void Thread::SetName(const String &threadName)
     if (threadName != GetName())
     {
         m_threadName = threadName;
-        pthread_setname_np(m_thread.native_handle(), GetName().ToCString());
     }
 }
 void Thread::SetRunnable(ThreadRunnable *runnable)
@@ -65,13 +69,20 @@ void Thread::SetRunnable(ThreadRunnable *runnable)
     p_runnable->p_thread = this;
 }
 
-const String &Thread::GetName() const { return m_threadName; }
-ThreadRunnable *Thread::GetRunnable() const { return p_runnable; }
+const String &Thread::GetName() const
+{
+    return m_threadName;
+}
+
+ThreadRunnable *Thread::GetRunnable() const
+{
+    return p_runnable;
+}
 
 void Thread::SleepCurrentThread(float seconds)
 {
-    int millis = Cast<int>(seconds * 1000);
-    std::this_thread::sleep_for( std::chrono::milliseconds(millis) );
+    int millis = SCAST<int>(seconds * 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(millis));
 }
 
 String Thread::GetCurrentThreadId()
@@ -86,10 +97,16 @@ int ThreadFunc(ThreadRunnable *runnable, Thread *thread)
     if (runnable)
     {
         runnable->Run();
+        if (runnable->IsAutoDelete())
+        {
+            delete runnable;
+        }
     }
-    if (runnable->IsAutoDelete()) { delete runnable; }
 
-    thread->m_hasFinished = true;
+    if (thread)
+    {
+        thread->m_hasFinished = true;
+    }
 
     return 0;
 }
@@ -117,4 +134,14 @@ Thread *ThreadRunnable::GetThread() const
     return p_thread;
 }
 
-NAMESPACE_BANG_END
+ThreadRunnableLambda::ThreadRunnableLambda(
+    const std::function<void()> &runFunction)
+{
+    m_runFunction = runFunction;
+}
+
+void ThreadRunnableLambda::Run()
+{
+    m_runFunction();
+}
+}  // namespace Bang

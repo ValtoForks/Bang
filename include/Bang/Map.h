@@ -4,33 +4,39 @@
 #include <map>
 #include "Bang/Bang.h"
 
-NAMESPACE_BANG_BEGIN
+namespace Bang
+{
+template <class>
+class Array;
 
-FORWARD_T class List;
-
-template <class Key, class Value>
+template <class Key, class Value, class Compare = std::less<Key>>
 class Map
 {
 public:
-    using Iterator = typename std::map<Key, Value>::iterator;
-    using RIterator = typename std::map<Key, Value>::reverse_iterator;
-    using Const_Iterator = typename std::map<Key, Value>::const_iterator;
-    using Const_RIterator = typename std::map<Key, Value>::const_reverse_iterator;
+    using Iterator = typename std::map<Key, Value, Compare>::iterator;
+    using RIterator = typename std::map<Key, Value, Compare>::reverse_iterator;
+    using Const_Iterator =
+        typename std::map<Key, Value, Compare>::const_iterator;
+    using Const_RIterator =
+        typename std::map<Key, Value, Compare>::const_reverse_iterator;
 
     Map();
-    Map(const std::map<Key, Value> &m);
+    Map(const std::map<Key, Value, Compare> &m);
 
     void Add(const Key &key, const Value &value = Value());
+
+    template <typename... Args>
+    void Emplace(Args &&... args);
 
     void Remove(const Key &key);
     Iterator Remove(Iterator it);
     void RemoveValues(const Value &value);
 
-    Value& Get(const Key &key);
-    const Value& Get(const Key &key) const;
-    List<Key> GetKeysWithValue(const Value& v) const;
-    List<Key> GetKeys() const;
-    List<Value> GetValues() const;
+    Value &Get(const Key &key);
+    const Value &Get(const Key &key) const;
+    Array<Key> GetKeysWithValue(const Value &v) const;
+    Array<Key> GetKeys() const;
+    Array<Value> GetValues() const;
 
     void Clear();
     int Size() const;
@@ -41,8 +47,8 @@ public:
     bool ContainsKey(const Key &key) const;
     bool ContainsValue(const Value &value) const;
 
-    Value& operator[](const Key &k);
-    const Value& operator[](const Key &k) const;
+    Value &operator[](const Key &k);
+    const Value &operator[](const Key &k) const;
 
     Iterator Begin();
     Iterator End();
@@ -63,12 +69,14 @@ public:
     Const_Iterator cbegin() const;
     Const_Iterator cend() const;
 
+    bool operator==(const Map<Key, Value, Compare> &rhs) const;
+    bool operator!=(const Map<Key, Value, Compare> &rhs) const;
+
 private:
-    std::map<Key, Value> m_map;
+    std::map<Key, Value, Compare> m_map;
 };
+}
 
-NAMESPACE_BANG_END
+#include "Bang/Map.tcc"
 
-#include "Map.tcc"
-
-#endif // MAP_H
+#endif  // MAP_H

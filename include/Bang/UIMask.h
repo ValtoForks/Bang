@@ -1,19 +1,25 @@
 #ifndef UIMASK_H
 #define UIMASK_H
 
-#include "Bang/GL.h"
-#include "Bang/Array.h"
+#include <array>
+
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/GL.h"
+#include "Bang/MetaNode.h"
+#include "Bang/RenderPass.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
+namespace Bang
+{
 class UIMask : public Component
 {
     COMPONENT(UIMask)
 
 public:
     UIMask();
-    virtual ~UIMask();
+    virtual ~UIMask() override;
 
     virtual void OnRender(RenderPass renderPass) override;
     virtual void OnBeforeChildrenRender(RenderPass renderPass) override;
@@ -26,8 +32,8 @@ public:
     bool IsDrawMask() const;
 
     // Serializable
-    virtual void ImportXML(const XMLNode &xmlInfo) override;
-    virtual void ExportXML(XMLNode *xmlInfo) const override;
+    virtual void ImportMeta(const MetaNode &metaNode) override;
+    virtual void ExportMeta(MetaNode *metaNode) const override;
 
 private:
     bool m_masking = true;
@@ -35,14 +41,13 @@ private:
     bool m_restoringStencil = false;
 
     std::array<bool, 4> m_colorMaskBefore;
-    GL::Function  m_stencilFuncBefore;
+    GL::Function m_stencilFuncBefore;
     GL::StencilOperation m_stencilOpBefore;
 
     void PrepareStencilToDrawMask();
     void PrepareStencilToDrawChildren();
     void RestoreStencilBuffer(RenderPass renderPass);
 };
+}
 
-NAMESPACE_BANG_END
-
-#endif // UIMASK_H
+#endif  // UIMASK_H

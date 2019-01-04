@@ -1,6 +1,8 @@
 #include "Bang/Segment2D.h"
 
-USING_NAMESPACE_BANG
+#include "Bang/Vector2.h"
+
+using namespace Bang;
 
 Segment2D::Segment2D(const Vector2 &origin, const Vector2 &destiny)
 {
@@ -37,4 +39,3 @@ const Vector2 &Segment2D::GetDestiny() const
 {
     return m_destiny;
 }
-

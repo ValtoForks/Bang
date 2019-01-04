@@ -1,15 +1,21 @@
 #ifndef UIFILELIST_H
 #define UIFILELIST_H
 
-#include "Bang/Path.h"
-#include "Bang/GameObject.h"
+#include <functional>
+
+#include "Bang/Array.h"
+#include "Bang/BangDefines.h"
 #include "Bang/Component.h"
+#include "Bang/ComponentMacros.h"
+#include "Bang/GameObject.h"
+#include "Bang/List.h"
+#include "Bang/Path.h"
+#include "Bang/String.h"
 
-NAMESPACE_BANG_BEGIN
-
-FORWARD class UITextRenderer;
-FORWARD class UIFileListItem;
-FORWARD class UIImageRenderer;
+namespace Bang
+{
+class UIFileListItem;
+class UITextRenderer;
 
 class UIFileList : public Component
 {
@@ -17,12 +23,12 @@ class UIFileList : public Component
 
 public:
     UIFileList();
-    virtual ~UIFileList();
+    virtual ~UIFileList() override;
 
     void OnStart() override;
     void OnUpdate() override;
 
-    using PathCallback = std::function<void(const Path&)>;
+    using PathCallback = std::function<void(const Path &)>;
 
     void SetFileExtensions(const Array<String> &extensions);
     void SetCurrentPath(const Path &currentPath);
@@ -31,7 +37,7 @@ public:
     void SetShowOnlyDirectories(bool showOnlyDirectories);
 
     Path GetCurrentSelectedPath() const;
-    const Path& GetCurrentPath() const;
+    const Path &GetCurrentPath() const;
     bool GetShowOnlyDirectories() const;
     const Array<String> &GetFileExtensions() const;
 
@@ -51,18 +57,18 @@ class UIFileListItem : public GameObject
     GAMEOBJECT(UIFileListItem);
 
 public:
+    UIFileListItem();
+
     void SetPath(const Path &path);
-    const Path& GetPath();
+    const Path &GetPath();
 
 protected:
-    UIFileListItem();
-    virtual ~UIFileListItem();
+    virtual ~UIFileListItem() override;
 
 private:
-    Path m_path = Path::Empty;
+    Path m_path = Path::Empty();
     UITextRenderer *m_text = nullptr;
 };
+}  // namespace Bang
 
-NAMESPACE_BANG_END
-
-#endif // UIFILELIST_H
+#endif  // UIFILELIST_H
